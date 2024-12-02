@@ -12,7 +12,7 @@ class MainWindow(QWidget):
 
         # Пример приветствия на главном окне
         self.welcome_label = QLabel("Добро пожаловать!", self)
-        self.welcome_label.setGeometry(800, 800, 800, 800)
+        self.welcome_label.setGeometry(100, 100, 800, 800)
 
         # Кнопка для выхода
         self.exit_button = QPushButton("Выход", self)
