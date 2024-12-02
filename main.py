@@ -27,70 +27,53 @@ class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Login Window")  # Заголовок окна
-        self.setGeometry(800, 300, 400, 350)  # Размеры окна (400x350)
+        self.setWindowTitle("Login Window")  
+        self.setGeometry(800, 300, 400, 350) 
 
-        # Создаем элементы интерфейса
         self.username_label = QLabel("Логин:")
         self.password_label = QLabel("Пароль:")
         self.username_input = QLineEdit()
         self.password_input = QLineEdit()
-        self.password_input.setEchoMode(QLineEdit.Password)  # Скрыть символы пароля
+        self.password_input.setEchoMode(QLineEdit.Password)  
         self.login_button = QPushButton("Вход")
         self.exit_button = QPushButton("Выход")
-
-        # Основной лейаут
         main_layout = QVBoxLayout()
-
-        # Сетка для логина и пароля
         grid_layout = QGridLayout()
-        grid_layout.addWidget(self.username_label, 0, 0)  # Логин (надпись)
-        grid_layout.addWidget(self.username_input, 0, 1)  # Поле ввода для логина
-        grid_layout.addWidget(self.password_label, 1, 0)  # Пароль (надпись)
-        grid_layout.addWidget(self.password_input, 1, 1)  # Поле ввода для пароля
+        grid_layout.addWidget(self.username_label, 0, 0)  
+        grid_layout.addWidget(self.username_input, 0, 1)  
+        grid_layout.addWidget(self.password_label, 1, 0)  
+        grid_layout.addWidget(self.password_input, 1, 1)  
 
-        # Добавляем сетку в основной лейаут
         main_layout.addLayout(grid_layout)
 
-        # Добавляем кнопку "Вход"
         main_layout.addWidget(self.login_button)
-
-        # Лейаут для кнопки "Выход" (в правом нижнем углу)
         bottom_layout = QHBoxLayout()
-        bottom_layout.addStretch()  # Заполняет пространство слева
+        bottom_layout.addStretch()  
         bottom_layout.addWidget(self.exit_button)
 
-        # Добавляем нижний лейаут в основной
         main_layout.addLayout(bottom_layout)
 
-        # Устанавливаем основной лейаут
         self.setLayout(main_layout)
-
-        # Обработчики кнопок
         self.login_button.clicked.connect(self.check_user_credentials)
-        self.exit_button.clicked.connect(self.close)  # Закрыть окно
+        self.exit_button.clicked.connect(self.close) 
 
-        # Подключение к базе данных
+    
         self.db = get_database_connection()
 
     def check_user_credentials(self):
         username = self.username_input.text()
         password = self.password_input.text()
 
-        # Запрос к базе данных
         query = "SELECT password FROM users WHERE username = %s"
         params = (username,)
         result = self.db.execute_query(query, params)
 
-        if result:  # Если пользователь найден
-            stored_password = result[0][0]  # Получаем хранимый пароль
-            if stored_password == password:  # Если пароли совпадают
+        if result:  
+            stored_password = result[0][0]  
+            if stored_password == password:  
                 QMessageBox.information(self, "Успех", "Вы успешно вошли!")
-
-                # Закрываем окно логина
                 self.close()
 
-                # Открываем основное окно
                 self.main_window = MainWindow()
                 self.main_window.show()
 
@@ -100,15 +83,15 @@ class LoginWindow(QWidget):
             QMessageBox.warning(self, "Ошибка", "Неверное имя пользователя!")
 
     def closeEvent(self, event):
-        self.db.close()  # Закрываем соединение с БД
+        self.db.close()  
         event.accept()
 
 
 def main():
     app = QApplication(sys.argv)
     window = LoginWindow()
-    window.show()  # Показываем окно
-    sys.exit(app.exec_())  # Запускаем главный цикл приложения
+    window.show()  
+    sys.exit(app.exec_())  
 
 
 if __name__ == "__main__":
