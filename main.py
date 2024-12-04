@@ -11,8 +11,8 @@ class MainWindow(QWidget):
         self.setGeometry(800, 300, 400, 350)  # Размер нового окна
 
         # Пример приветствия на главном окне
-        self.welcome_label = QLabel("Добро пожаловать!", self)
-        self.welcome_label.setGeometry(100, 100, 800, 800)
+        self.welcome_label = QLabel("Добро пожаловать, Админ!", self)
+        self.welcome_label.setGeometry(100, 100, 800, 500)
 
         # Кнопка для выхода
         self.exit_button = QPushButton("Выход", self)
@@ -28,7 +28,7 @@ class LoginWindow(QWidget):
         super().__init__()
 
         self.setWindowTitle("Login Window")  
-        self.setGeometry(800, 300, 400, 350) 
+        self.setGeometry(800, 300, 450, 350) 
 
         self.username_label = QLabel("Логин:")
         self.password_label = QLabel("Пароль:")
