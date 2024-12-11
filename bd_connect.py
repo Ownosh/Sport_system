@@ -3,10 +3,10 @@ from mysql.connector import Error
 
 # Конфигурация для подключения к базе данных
 DATABASE_CONFIG = {
-    'host': 'sql7.freesqldatabase.com',
-    'database': 'sql7748562',
-    'user': 'sql7748562',
-    'password': 'rUe9qv5eU3'
+    'host': 'mysql-ownosh.alwaysdata.net',
+    'database': 'ownosh_sport_system',
+    'user': 'ownosh',
+    'password': 'S~0U;G~1z(f'
 }
 
 class MySQLDatabase:

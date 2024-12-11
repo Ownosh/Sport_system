@@ -3,24 +3,23 @@ from bd_connect import get_database_connection
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox
 
 
-class MainWindow(QWidget):
+class AdminWindow(QWidget):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("Admin Window")
 
-        self.setWindowTitle("Main Window")  # Заголовок нового окна
-        self.setGeometry(800, 300, 400, 350)  # Размер нового окна
+# Окно для спортсмена
+class AthleteWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Athlete Window")
 
-        # Пример приветствия на главном окне
-        self.welcome_label = QLabel("Добро пожаловать, Админ!", self)
-        self.welcome_label.setGeometry(100, 100, 800, 500)
+# Окно для тренера
+class CoachWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Coach Window")
 
-        # Кнопка для выхода
-        self.exit_button = QPushButton("Выход", self)
-        self.exit_button.setGeometry(150, 220, 100, 30)
-        self.exit_button.clicked.connect(self.close)
-
-    def closeEvent(self, event):
-        event.accept()  # Закрытие окна
 
 
 class LoginWindow(QWidget):
@@ -64,27 +63,37 @@ class LoginWindow(QWidget):
         username = self.username_input.text()
         password = self.password_input.text()
 
-        query = "SELECT password FROM users WHERE username = %s"
+    # Запрос на получение пароля и роли
+        query = "SELECT password, role FROM users WHERE username = %s"
         params = (username,)
         result = self.db.execute_query(query, params)
 
-        if result:  
-            stored_password = result[0][0]  
-            if stored_password == password:  
+        if result:  # Если пользователь найден
+            stored_password, role = result  # Получаем пароль и роль из результата запроса
+
+            if stored_password == password:  # Сравниваем пароли
                 QMessageBox.information(self, "Успех", "Вы успешно вошли!")
                 self.close()
 
-                self.main_window = MainWindow()
-                self.main_window.show()
-
+            # Открытие соответствующего окна в зависимости от роли
+                if role == "admin":
+                    AdminWindow()
+                elif role == "sportsman":
+                    AthleteWindow()
+                elif role == "trainer":
+                    CoachWindow()
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Неизвестная роль пользователя!")
+                    return
             else:
                 QMessageBox.warning(self, "Ошибка", "Неверный пароль!")
         else:
             QMessageBox.warning(self, "Ошибка", "Неверное имя пользователя!")
 
-    def closeEvent(self, event):
-        self.db.close()  
-        event.accept()
+def closeEvent(self, event):
+    self.db.close()  # Закрытие соединения с базой данных
+    event.accept()
+
 
 
 def main():
