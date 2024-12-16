@@ -8,19 +8,15 @@ class AdminWindow(QWidget):
         super().__init__()
         self.setWindowTitle("Admin Window")
 
-# Окно для спортсмена
 class AthleteWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Athlete Window")
 
-# Окно для тренера
 class CoachWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Coach Window")
-
-
 
 class LoginWindow(QWidget):
     def __init__(self):
