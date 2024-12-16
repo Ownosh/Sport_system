@@ -60,40 +60,51 @@ class LoginWindow(QWidget):
         self.db = get_database_connection()
 
     def check_user_credentials(self):
-        username = self.username_input.text()
-        password = self.password_input.text()
+        username = self.username_input.text().strip() 
+        password = self.password_input.text().strip()
 
-    # Запрос на получение пароля и роли
-        query = "SELECT password, role FROM users WHERE username = %s"
-        params = (username,)
-        result = self.db.execute_query(query, params)
+        if not username or not password:
+            QMessageBox.warning(self, "Ошибка", "Введите имя пользователя и пароль!")
+            return
 
-        if result:  # Если пользователь найден
-            stored_password, role = result  # Получаем пароль и роль из результата запроса
+        try:
+            query = "SELECT password, role FROM users WHERE username = %s"
+            params = (username,)
+            result = self.db.execute_query(query, params)
 
-            if stored_password == password:  # Сравниваем пароли
-                QMessageBox.information(self, "Успех", "Вы успешно вошли!")
-                self.close()
+            if result:
+                stored_password, role = result[0]
 
-            # Открытие соответствующего окна в зависимости от роли
-                if role == "admin":
-                    AdminWindow()
-                elif role == "sportsman":
-                    AthleteWindow()
-                elif role == "trainer":
-                    CoachWindow()
+                print(f"Stored password: '{stored_password}', Input password: '{password}'")
+
+                if stored_password == password.strip():
+                    QMessageBox.information(self, "Успех", "Вы успешно вошли!")
+                    self.open_role_window(role)
                 else:
-                    QMessageBox.warning(self, "Ошибка", "Неизвестная роль пользователя!")
-                    return
+                    QMessageBox.warning(self, "Ошибка", "Неверный пароль!")
             else:
-                QMessageBox.warning(self, "Ошибка", "Неверный пароль!")
+                QMessageBox.warning(self, "Ошибка", "Пользователь не найден!")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при подключении к базе данных: {e}")
+
+
+    def open_role_window(self, role):
+        self.close()
+        if role == "admin":
+            self.admin_window = AdminWindow()
+            self.admin_window.show()
+        elif role == "sportsman":
+            self.athlete_window = AthleteWindow()
+            self.athlete_window.show()
+        elif role == "trainer":
+            self.coach_window = CoachWindow()
+            self.coach_window.show()
         else:
-            QMessageBox.warning(self, "Ошибка", "Неверное имя пользователя!")
+            QMessageBox.warning(self, "Ошибка", "Неизвестная роль пользователя!")
 
 def closeEvent(self, event):
-    self.db.close()  # Закрытие соединения с базой данных
-    event.accept()
-
+        self.db.close()
+        event.accept()
 
 
 def main():
