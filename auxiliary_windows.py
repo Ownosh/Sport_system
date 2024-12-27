@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget,QLineEdit,QGridLayout, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
 import os
-from windows_to_change import CreateGroupWindow, CreateUserWindow,CreateRewardWindow
+from windows_to_change import CreateGroupWindow, CreateUserWindow,CreateRewardWindow, CreateTrainingWindow
 
 # Database connection function
 def get_database_connection():
@@ -16,7 +16,6 @@ def get_database_connection():
         QMessageBox.critical(None, "Ошибка подключения", f"Ошибка при подключении к базе данных: {e}")
         return None
 
-# Base window class for all other windows
 class BaseWindow(QWidget):
     def __init__(self, parent_window, title, table_label, column_labels, button_labels):
         super().__init__()
@@ -83,7 +82,6 @@ class BaseWindow(QWidget):
             cursor.close()
             db.close()
 
-# Specific windows for various types (Awards, Users, etc.)
 class AwardWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
@@ -117,8 +115,15 @@ class TrainingWindow(BaseWindow):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
         column_labels = ["training_id", "group_id", "date", "location"]
         super().__init__(parent_window, "Журнал тренировок", "Тренировки", column_labels, button_labels)
+        self.add_button.clicked.connect(self.add_training)
         self.load_data("SELECT training_id, group_id, date, location FROM trainings", 
                ["training_id", "group_id", "date", "location"])
+        
+    def add_training(self):
+        print("Метод add_training вызван")  # Отладочное сообщение
+        self.create_user_window = CreateTrainingWindow(self)
+        self.create_user_window.show()
+        self.hide()
         
 
 
@@ -162,4 +167,54 @@ class TrainerWindow(BaseWindow):
         
    
 class ProfileWindow(QWidget):
-    pass
+    def __init__(self, parent=None, username=None):
+        super().__init__(parent)
+        self.setWindowTitle("Профиль")
+        self.setGeometry(350, 150, 400, 300)
+        self.username = username
+        
+        self.setup_ui()
+        self.load_profile_data()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+
+        self.role_label = QLabel("Роль: ")
+        self.username_label = QLabel("Логин: ")
+        self.password_label = QLabel("Пароль: ")
+
+        layout.addWidget(self.role_label)
+        layout.addWidget(self.username_label)
+        layout.addWidget(self.password_label)
+
+        self.back_button = QPushButton("Назад")
+        self.back_button.clicked.connect(self.go_back)
+
+        layout.addWidget(self.back_button)
+
+        self.setLayout(layout)
+
+    def load_profile_data(self):
+        connection = get_database_connection()
+        if connection and self.username:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT role, password FROM users WHERE username = %s", (self.username,))
+                user = cursor.fetchone()
+                if user:
+                    role, password = user
+                    self.role_label.setText(f"Роль: {role}")
+                    self.username_label.setText(f"Логин: {self.username}")
+                    self.password_label.setText(f"Пароль: {password}")
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Пользователь не найден!")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def go_back(self):
+        self.close()
+        self.parent().show()
+

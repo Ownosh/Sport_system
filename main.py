@@ -3,11 +3,7 @@ from bd_connect import get_database_connection
 from PyQt6.QtWidgets import (QApplication, QWidget, QTextEdit, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
 from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, GroupWindow, SportsmenWindow, ProfileWindow, TrainerWindow
 import mysql.connector
-from PIL.ImageQt import ImageQt
 import matplotlib.pyplot as plt
-from io import BytesIO
-from PIL import Image
-from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QLabel
 class AdminWindow(QWidget):
     def __init__(self):
@@ -119,10 +115,10 @@ class AdminWindow(QWidget):
     def generate_reports(self):
         # Подключение к базе данных MySQL
         connection = mysql.connector.connect(
-            host="",
-            user="root",
-            password="password",
-            database="sports_db"
+            host="mysql-ownosh.alwaysdata.net",
+            user="ownosh",
+            password="S~0U;G~1z(f",
+            database="ownosh_sport_system"
         )
         cursor = connection.cursor()
         # Генерация общего отчета
@@ -142,28 +138,18 @@ class AdminWindow(QWidget):
             f"Неактивных спортсменов: {inactive_athletes}\n"
         )
         self.report_text_area.setText(report_text)
+        
 
         # Генерация диаграммы
         labels = ['Активные', 'Неактивные']
         sizes = [active_athletes, inactive_athletes]
+        
+        
         fig, ax = plt.subplots()
         ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
         ax.axis('equal')
 
-        # Отображение диаграммы в приложении
-        buf = BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-        img = Image.open(buf)
-        qpixmap = QPixmap.fromImage(ImageQt(img))
-        self.chart_label.setPixmap(qpixmap)
 
-        # Очистка ресурсов
-        buf.close()
-        plt.close(fig)
-
-        cursor.close()
-        connection.close()
 
 class AthleteWindow(QWidget):
     def __init__(self):
