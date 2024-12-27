@@ -1,10 +1,10 @@
 import sys
 from PyQt6.QtWidgets import (QApplication, QWidget, QTextEdit, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
 from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, ProfileWindow, TrainerWindow
-import mysql.connector
 from PyQt6.QtWidgets import QLabel
 from group import GroupWindow
 from spwin import SportsmenWindow
+from report import ReportWindow
 from windows_to_change import get_database_connection
 
 class AdminWindow(QWidget):
@@ -70,9 +70,8 @@ class AdminWindow(QWidget):
         self.training_button.clicked.connect(self.open_training_)
         self.competition_button.clicked.connect(self.open_competition_)
         self.user_button.clicked.connect(self.open_user_)
-        self.reports_button.clicked.connect(self.generate_reports)
+        self.reports_button.clicked.connect(self.open_reports)
         
-
     def open_profile_(self):
         self.hide()
         self.profile_window = ProfileWindow(self, username=self.current_username)
@@ -113,69 +112,11 @@ class AdminWindow(QWidget):
         self.user_window = UserWindow(self)
         self.user_window.show()
     
-    def generate_reports(self):
-        connection = mysql.connector.connect(
-            host="mysql-ownosh.alwaysdata.net",
-            user="ownosh",
-            password="S~0U;G~1z(f",
-            database="ownosh_sport_system"
-        )
-        cursor = connection.cursor()
-        
-        # Общее количество спортсменов
-        cursor.execute("SELECT COUNT(*) FROM sportsmen")
-        total_athletes = cursor.fetchone()[0]
+    def open_reports(self):
+        self.hide()
+        self.report_window = ReportWindow(self)
+        self.report_window.show()
 
-        # Количество активных спортсменов
-        cursor.execute("SELECT COUNT(*) FROM sportsmen WHERE active=1")
-        active_athletes = cursor.fetchone()[0]
-
-        # Количество неактивных спортсменов
-        cursor.execute("SELECT COUNT(*) FROM sportsmen WHERE active=0")
-        inactive_athletes = cursor.fetchone()[0]
-
-        # Количество спортсменов, которые участвовали в соревнованиях
-        cursor.execute("""
-            SELECT COUNT(DISTINCT athlete_id)
-            FROM competition_attendance
-            WHERE is_present=1
-        """)
-        participated_competitions = cursor.fetchone()[0]
-
-        # Количество спортсменов, которые пропустили соревнования
-        cursor.execute("""
-            SELECT COUNT(DISTINCT athlete_id)
-            FROM competition_attendance
-            WHERE is_present=0
-        """)
-        absent_competitions = cursor.fetchone()[0]
-
-        # Количество спортсменов, которые присутствовали на тренировках
-        cursor.execute("""
-            SELECT COUNT(DISTINCT athlete_id)
-            FROM training_attendance
-            WHERE is_present=1
-        """)
-        attended_trainings = cursor.fetchone()[0]
-
-        # Количество спортсменов, которые пропустили тренировки
-        cursor.execute("""
-            SELECT COUNT(DISTINCT athlete_id)
-            FROM training_attendance
-            WHERE is_present=0
-        """)
-        missed_trainings = cursor.fetchone()[0]
-
-        report_text = (
-            f"Общее количество спортсменов: {total_athletes}\n"
-            f"Активных спортсменов: {active_athletes}\n"
-            f"Неактивных спортсменов: {inactive_athletes}\n"
-            f"Спортсмены, участвовавшие в соревнованиях: {participated_competitions}\n"
-            f"Спортсмены, пропустившие соревнования: {absent_competitions}\n"
-            f"Спортсмены, присутствовавшие на тренировках: {attended_trainings}\n"
-            f"Спортсмены, пропустившие тренировки: {missed_trainings}\n"
-        )
-        self.report_text_area.setText(report_text)
 
 
 class AthleteWindow(QWidget):

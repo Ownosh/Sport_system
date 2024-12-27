@@ -1,8 +1,10 @@
 import mysql.connector
-from PyQt6.QtWidgets import QWidget,QDialog, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
-from PyQt6.QtCore import QDate
+from PyQt6.QtWidgets import QWidget,QDialog,QFileDialog, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
+from PyQt6.QtCore import Qt
 import os
 from PyQt6.QtCore import QDateTime
+from PyQt6.QtGui import QPixmap
+
 
 
 def get_database_connection(): 
@@ -21,7 +23,7 @@ class CreateUserWindow(QWidget):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle("Создание пользователя")
-        self.setGeometry(530, 270, 450, 350)
+        self.setGeometry(530, 270, 600, 400)  # Увеличиваем размеры окна
 
         # Элементы формы
         self.username_label = QLabel("Логин:")
@@ -60,7 +62,10 @@ class CreateUserWindow(QWidget):
         self.back_button.clicked.connect(self.go_back)
 
         # Размещение элементов на форме
-        layout = QVBoxLayout()
+        layout = QHBoxLayout()  # Используем горизонтальный макет
+
+        # Сетка для формы слева
+        form_layout = QVBoxLayout()
 
         grid_layout = QGridLayout()
         grid_layout.addWidget(self.username_label, 0, 0)
@@ -86,11 +91,35 @@ class CreateUserWindow(QWidget):
         grid_layout.addWidget(self.email_label, 10, 0)
         grid_layout.addWidget(self.email_input, 10, 1)
 
-        layout.addLayout(grid_layout)
-        layout.addWidget(self.submit_button)
-        layout.addWidget(self.back_button)  # Добавляем кнопку "Назад"
+        form_layout.addLayout(grid_layout)
+        form_layout.addWidget(self.submit_button)
+        form_layout.addWidget(self.back_button)  # Добавляем кнопку "Назад"
+
+        # Панель для фото справа
+        photo_layout = QVBoxLayout()
+        self.photo_label = QLabel()
+        self.photo_label.setFixedSize(150, 150)
+        self.photo_label.setStyleSheet("border: 1px solid black;")
+
+        self.add_photo_button = QPushButton("Добавить фото")
+        self.add_photo_button.clicked.connect(self.add_photo)
+
+        photo_layout.addWidget(self.photo_label)
+        photo_layout.addWidget(self.add_photo_button)
+        photo_layout.addStretch()
+
+        layout.addLayout(form_layout)
+        layout.addLayout(photo_layout)
 
         self.setLayout(layout)
+
+    def add_photo(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Выберите изображение", "", "Изображения (*.png *.xpm *.jpg)")
+        if file_name:
+            pixmap = QPixmap(file_name)
+            self.photo_label.setPixmap(pixmap.scaled(self.photo_label.size(), Qt.AspectRatioMode.KeepAspectRatio))
+            self.photo_file = file_name  # Сохраняем имя файла для последующего использования
+ # Сохраняем имя файла для последующего использования
 
     def submit_form(self):
         username = self.username_input.text().strip()
@@ -135,13 +164,25 @@ class CreateUserWindow(QWidget):
                 print(f"Запрос для спортсмена: {insert_athlete_query}, параметры: {user_id}, {first_name}, {last_name}, {middle_name}, {dob}, {city}, {sport_type}")
                 cursor.execute(insert_athlete_query, (user_id, first_name, last_name, middle_name, dob, city, sport_type))
 
+                # Добавление фото спортсмена
+                if hasattr(self, 'photo_file'):
+                    with open(self.photo_file, "rb") as file:
+                        binary_data = file.read()
+                    cursor.execute("UPDATE sportsmen SET photo = %s WHERE user_id = %s", (binary_data, user_id))
+
             elif role == "Trainer":
                 insert_trainer_query = """
                 INSERT INTO trainers (user_id, first_name, last_name, patronymic, birthdate, city, specialty)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
                 print(f"Запрос для тренера: {insert_trainer_query}, параметры: {user_id}, {first_name}, {last_name}, {middle_name}, {dob}, {city}, {sport_type}")
-                cursor.execute(insert_trainer_query, (user_id, first_name, last_name, middle_name, dob,city, sport_type))
+                cursor.execute(insert_trainer_query, (user_id, first_name, last_name, middle_name, dob, city, sport_type))
+
+                # Добавление фото тренера
+                if hasattr(self, 'photo_file'):
+                    with open(self.photo_file, "rb") as file:
+                        binary_data = file.read()
+                    cursor.execute("UPDATE trainers SET photo = %s WHERE user_id = %s", (binary_data, user_id))
 
             db.commit()
 
@@ -635,6 +676,7 @@ class CreateCompetitionWindow(QWidget):
                         """, (competition_id, athlete_id, is_present))
                     
                     connection.commit()
+                    self.parent_window.load_data("SELECT * FROM competitions", ["competition_id", "name", "date", "trainer", "location"])  # Обновляем таблицу с соревнованиями
                     QMessageBox.information(self, "Успех", "Соревнование успешно добавлено!")
                 else:
                     QMessageBox.warning(self, "Ошибка", "Тренер не найден в базе данных.")
@@ -645,9 +687,11 @@ class CreateCompetitionWindow(QWidget):
                 cursor.close()
                 connection.close()
 
+
     def go_back(self):
         self.close() 
-        self.parent_window.show()  
+        self.parent_window.show()
+
 
 class DeleteTrainingWindow(QWidget):
     def __init__(self, parent_window):
@@ -1076,8 +1120,171 @@ class EditTrainingWindow(QDialog):
                     """, (training_id, athlete_id, is_present))
                 
                 connection.commit()
-                self.parent_window.load_data("SELECT * FROM trainings", ["training_id", "name", "date", "trainer", "group_id", "location"])
+                self.parent_window.load_data("SELECT * FROM trainings", ["training_id", "name", "date","location", "trainer", "group_id"])
                 QMessageBox.information(self, "Успех", "Тренировка успешно сохранена!")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при сохранении изменений: {e}")
+                connection.rollback()
+            finally:
+                cursor.close()
+                connection.close()
+
+
+    def go_back(self):
+        self.close()
+
+class EditCompetitionWindow(QDialog):
+    def __init__(self, parent_window, competition_id):
+        super().__init__()
+        self.parent_window=parent_window
+        self.competition_id = competition_id
+        self.setWindowTitle("Редактирование соревнования")
+        self.setGeometry(350, 150, 800, 400)
+
+        self.setup_ui()
+        self.load_data()
+
+    def setup_ui(self):
+        main_layout = QHBoxLayout()
+        form_layout = QVBoxLayout()
+
+        self.name_label = QLabel("Название соревнования:")
+        self.name_input = QLineEdit()
+        form_layout.addWidget(self.name_label)
+        form_layout.addWidget(self.name_input)
+
+        self.datetime_label = QLabel("Дата и время:")
+        self.datetime_input = QDateTimeEdit()
+        form_layout.addWidget(self.datetime_label)
+        form_layout.addWidget(self.datetime_input)
+
+        self.coach_label = QLabel("Тренер:")
+        self.coach_input = QComboBox()
+        form_layout.addWidget(self.coach_label)
+        form_layout.addWidget(self.coach_input)
+
+        self.location_label = QLabel("Местоположение:")
+        self.location_input = QLineEdit()
+        form_layout.addWidget(self.location_label)
+        form_layout.addWidget(self.location_input)
+
+        buttons_layout = QHBoxLayout()
+        self.save_button = QPushButton("Сохранить изменения")
+        self.back_button = QPushButton("Назад")
+        buttons_layout.addWidget(self.save_button)
+        buttons_layout.addWidget(self.back_button)
+        form_layout.addLayout(buttons_layout)
+
+        main_layout.addLayout(form_layout)
+
+        self.athletes_table = QTableWidget()
+        self.athletes_table.setRowCount(0)
+        self.athletes_table.setColumnCount(2)
+        self.athletes_table.setHorizontalHeaderLabels(["Спортсмен", "Присутствует"])
+        self.athletes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        
+        main_layout.addWidget(self.athletes_table)
+
+        self.setLayout(main_layout)
+
+        self.save_button.clicked.connect(self.save_competition)
+        self.back_button.clicked.connect(self.go_back)
+
+    def load_data(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT name, date, trainer, location FROM competitions WHERE competition_id = %s", (self.competition_id,))
+                competition = cursor.fetchone()
+                if competition:
+                    self.name_input.setText(competition[0])
+                    self.datetime_input.setDateTime(QDateTime.fromString(competition[1].strftime("%Y-%m-%d %H:%M:%S"), "yyyy-MM-dd HH:mm:ss"))
+                    self.location_input.setText(competition[3])
+
+                    cursor.execute("SELECT trainer_id, last_name FROM trainers")
+                    trainers = cursor.fetchall()
+                    for trainer in trainers:
+                        self.coach_input.addItem(trainer[1], trainer[0])
+                    index = self.coach_input.findData(competition[2])
+                    if index != -1:
+                        self.coach_input.setCurrentIndex(index)
+
+                    self.load_athletes()
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Соревнование не найдено")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных соревнования: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def load_athletes(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("""
+                    SELECT s.sportsman_id, s.last_name, ca.is_present
+                    FROM sportsmen s
+                    LEFT JOIN competition_attendance ca ON s.sportsman_id = ca.athlete_id AND ca.competition_id = %s
+                """, (self.competition_id,))
+                sportsmen = cursor.fetchall()
+                self.athletes_table.setRowCount(len(sportsmen))
+                for row, athlete in enumerate(sportsmen):
+                    name_item = QTableWidgetItem(athlete[1])
+                    presence_checkbox = QCheckBox()
+                    presence_checkbox.setChecked(bool(athlete[2]))  # Преобразование в bool
+                    self.athletes_table.setItem(row, 0, name_item)
+                    self.athletes_table.setCellWidget(row, 1, presence_checkbox)
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных спортсменов: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+
+    def save_competition(self):
+        competition_name = self.name_input.text()
+        competition_datetime = self.datetime_input.dateTime().toString("yyyy-MM-dd HH:mm:ss")
+        coach_id = self.coach_input.currentData()
+        location = self.location_input.text()
+
+        if not competition_name or not competition_datetime or not coach_id or not location:
+            QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены")
+            return
+
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("""
+                    UPDATE competitions SET name = %s, date = %s, trainer = %s, location = %s
+                    WHERE competition_id = %s
+                """, (competition_name, competition_datetime, coach_id, location, self.competition_id))
+
+                cursor.execute("DELETE FROM competition_attendance WHERE competition_id = %s", (self.competition_id,))
+                
+                presence_data = []
+                for row in range(self.athletes_table.rowCount()):
+                    athlete_name = self.athletes_table.item(row, 0).text()
+                    is_present = self.athletes_table.cellWidget(row, 1).isChecked()
+                    cursor.execute("SELECT sportsman_id FROM sportsmen WHERE last_name = %s", (athlete_name,))
+                    athlete = cursor.fetchone()
+                    if athlete:
+                        athlete_id = athlete[0]
+                        presence_data.append((self.competition_id, athlete_id, is_present))
+                
+                for competition_id, athlete_id, is_present in presence_data:
+                    cursor.execute("""
+                        INSERT INTO competition_attendance (competition_id, athlete_id, is_present)
+                        VALUES (%s, %s, %s)
+                    """, (competition_id, athlete_id, is_present))
+                
+                connection.commit()
+                self.parent_window.load_data("SELECT * FROM competitions", ["competition_id", "name", "date", "location", "trainer"])
+                QMessageBox.information(self, "Успех", "Соревнование успешно сохранено!")
+                self.close()
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при сохранении изменений: {e}")
                 connection.rollback()
@@ -1087,7 +1294,6 @@ class EditTrainingWindow(QDialog):
 
     def go_back(self):
         self.close()
-
 
 
 

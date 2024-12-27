@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
 from windows_to_change import (
-    CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, EditTrainingWindow, 
+    CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, EditTrainingWindow, EditCompetitionWindow,
     CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow)
 
 
@@ -201,6 +201,7 @@ class CompetitionWindow(BaseWindow):
         column_labels = ["competition_id", "name", "date", "location"]
         super().__init__(parent_window, "Журнал соревнований", "Соревнования", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_competition)
+        self.edit_button.clicked.connect(self.edit_competition)
         self.delete_button.clicked.connect(self.delete_competition)
         self.load_data("SELECT competition_id, name, date, location FROM competitions", 
                ["competition_id", "name", "date", "location"])
@@ -209,6 +210,17 @@ class CompetitionWindow(BaseWindow):
         self.create_user_window = CreateCompetitionWindow(self)
         self.create_user_window.show()
         self.hide()
+    
+    def edit_competition(self):
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите соревнование для редактирования")
+            return
+
+        competition_id = self.table.item(selected_row, 0).text()
+        self.edit_competition_window = EditCompetitionWindow(self, competition_id)
+        self.edit_competition_window.show()
+
         
     def delete_competition(self):  
         self.create_user_window = DeleteCompetitionWindow(self)
