@@ -1,12 +1,9 @@
 import mysql.connector
-from PyQt6.QtWidgets import QWidget, QVBoxLayout,QCheckBox,QTableWidgetItem,QApplication, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PyQt6.QtCore import QDate
 import os
-import sys
-from dotenv import load_dotenv
 from PyQt6.QtCore import QDateTime
 
-load_dotenv() 
 
 def get_database_connection(): 
     try:
@@ -620,7 +617,6 @@ class CreateTrainingWindow(QWidget):
         self.close() 
         self.parent_window.show()  
         
-        
 class CreateCompetitionWindow(QWidget):
     def __init__(self, parent_window):
         super().__init__()
@@ -771,4 +767,230 @@ class CreateCompetitionWindow(QWidget):
     def go_back(self):
         self.close() 
         self.parent_window.show()  
+
+class DeleteTrainingWindow(QWidget):
+    def __init__(self, parent_window):
+        super().__init__()
+        self.parent_window = parent_window
+        self.setWindowTitle("Удаление тренировки")
+        self.setGeometry(350, 150, 400, 200)
+        
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+
+        self.id_label = QLabel("ID тренировки:")
+        self.id_input = QLineEdit()
+        self.delete_button = QPushButton("Удалить тренировку")
+        self.back_button = QPushButton("Назад")
+
+        layout.addWidget(self.id_label)
+        layout.addWidget(self.id_input)
+        layout.addWidget(self.delete_button)
+        layout.addWidget(self.back_button)
+
+        self.setLayout(layout)
+
+        self.delete_button.clicked.connect(self.delete_training)
+        self.back_button.clicked.connect(self.go_back)
+
+    def delete_training(self):
+        training_id = self.id_input.text().strip()
+
+        if not training_id:
+            QMessageBox.warning(self, "Ошибка", "Введите ID тренировки!")
+            return
+
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                # Удаление записи из таблицы training_attendance, связанной с тренировкой
+                cursor.execute("DELETE FROM training_attendance WHERE training_id = %s", (training_id,))
+
+                # Удаление записи из таблицы trainings
+                cursor.execute("DELETE FROM trainings WHERE training_id = %s", (training_id,))
+                connection.commit()
+                QMessageBox.information(self, "Успех", "Тренировка успешно удалена!")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении тренировки: {e}")
+                connection.rollback()
+            finally:
+                cursor.close()
+                connection.close()
+
+    def go_back(self): 
+        self.close() 
+        if self.parent_window: 
+            self.parent_window.show()
+            
+class DeleteCompetitionWindow(QWidget):
+    def __init__(self, parent_window):
+        super().__init__()
+        self.parent_window = parent_window
+        self.setWindowTitle("Удаление соревнования")
+        self.setGeometry(350, 150, 400, 200)
+        
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+
+        self.id_label = QLabel("ID соревнования:")
+        self.id_input = QLineEdit()
+        self.delete_button = QPushButton("Удалить соревнование")
+        self.back_button = QPushButton("Назад")
+
+        layout.addWidget(self.id_label)
+        layout.addWidget(self.id_input)
+        layout.addWidget(self.delete_button)
+        layout.addWidget(self.back_button)
+
+        self.setLayout(layout)
+
+        self.delete_button.clicked.connect(self.delete_competition)
+        self.back_button.clicked.connect(self.go_back)
+
+    def delete_competition(self):
+        competition_id = self.id_input.text().strip()
+
+        if not competition_id:
+            QMessageBox.warning(self, "Ошибка", "Введите ID соревнования!")
+            return
+
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                # Удаление записи из таблицы competition_attendance, связанной с соревнованием
+                cursor.execute("DELETE FROM competition_attendance WHERE competition_id = %s", (competition_id,))
+
+                # Удаление записи из таблицы competitions
+                cursor.execute("DELETE FROM competitions WHERE competition_id = %s", (competition_id,))
+                connection.commit()
+                QMessageBox.information(self, "Успех", "Соревнование успешно удалено!")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении соревнования: {e}")
+                connection.rollback()
+            finally:
+                cursor.close()
+                connection.close()
+
+    def go_back(self):
+        self.close()
+        if self.parent_window:
+            self.parent_window.show()
+
+class DeleteUserWindow(QWidget):
+    def __init__(self, parent_window):
+        super().__init__()
+        self.parent_window = parent_window
+        self.setWindowTitle("Удаление пользователя")
+        self.setGeometry(350, 150, 400, 200)
+        
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+
+        self.id_label = QLabel("ID пользователя:")
+        self.id_input = QLineEdit()
+        self.delete_button = QPushButton("Удалить пользователя")
+        self.back_button = QPushButton("Назад")
+
+        layout.addWidget(self.id_label)
+        layout.addWidget(self.id_input)
+        layout.addWidget(self.delete_button)
+        layout.addWidget(self.back_button)
+
+        self.setLayout(layout)
+
+        self.delete_button.clicked.connect(self.delete_user)
+        self.back_button.clicked.connect(self.go_back)
+
+    def delete_user(self):
+        user_id = self.id_input.text().strip()
+
+        if not user_id:
+            QMessageBox.warning(self, "Ошибка", "Введите ID пользователя!")
+            return
+
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+                connection.commit()
+                QMessageBox.information(self, "Успех", "Пользователь успешно удален!")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении пользователя: {e}")
+                connection.rollback()
+            finally:
+                cursor.close()
+                connection.close()
+
+    def go_back(self):
+        self.close()
+        if self.parent_window:
+            self.parent_window.show()
+
+
+class DeleteAwardWindow(QWidget):
+    def __init__(self, parent_window):
+        super().__init__()
+        self.parent_window = parent_window
+        self.setWindowTitle("Удаление награды")
+        self.setGeometry(350, 150, 400, 200)
+        
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+
+        self.id_label = QLabel("ID награды:")
+        self.id_input = QLineEdit()
+        self.delete_button = QPushButton("Удалить награду")
+        self.back_button = QPushButton("Назад")
+
+        layout.addWidget(self.id_label)
+        layout.addWidget(self.id_input)
+        layout.addWidget(self.delete_button)
+        layout.addWidget(self.back_button)
+
+        self.setLayout(layout)
+
+        self.delete_button.clicked.connect(self.delete_award)
+        self.back_button.clicked.connect(self.go_back)
+
+    def delete_award(self):
+        award_id = self.id_input.text().strip()
+
+        if not award_id:
+            QMessageBox.warning(self, "Ошибка", "Введите ID награды!")
+            return
+
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("DELETE FROM rewards WHERE reward_id = %s", (award_id,))
+                connection.commit()
+                QMessageBox.information(self, "Успех", "Награда успешно удалена!")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении награды: {e}")
+                connection.rollback()
+            finally:
+                cursor.close()
+                connection.close()
+
+    def go_back(self):
+        self.close()
+        if self.parent_window:
+            self.parent_window.show()
+
+
+
+
+
 

@@ -131,22 +131,62 @@ class AdminWindow(QWidget):
             database="ownosh_sport_system"
         )
         cursor = connection.cursor()
+        
+        # Общее количество спортсменов
         cursor.execute("SELECT COUNT(*) FROM sportsmen")
         total_athletes = cursor.fetchone()[0]
 
+        # Количество активных спортсменов
         cursor.execute("SELECT COUNT(*) FROM sportsmen WHERE active=1")
         active_athletes = cursor.fetchone()[0]
 
+        # Количество неактивных спортсменов
         cursor.execute("SELECT COUNT(*) FROM sportsmen WHERE active=0")
         inactive_athletes = cursor.fetchone()[0]
+
+        # Количество спортсменов, которые участвовали в соревнованиях
+        cursor.execute("""
+            SELECT COUNT(DISTINCT athlete_id)
+            FROM competition_attendance
+            WHERE is_present=1
+        """)
+        participated_competitions = cursor.fetchone()[0]
+
+        # Количество спортсменов, которые пропустили соревнования
+        cursor.execute("""
+            SELECT COUNT(DISTINCT athlete_id)
+            FROM competition_attendance
+            WHERE is_present=0
+        """)
+        absent_competitions = cursor.fetchone()[0]
+
+        # Количество спортсменов, которые присутствовали на тренировках
+        cursor.execute("""
+            SELECT COUNT(DISTINCT athlete_id)
+            FROM training_attendance
+            WHERE is_present=1
+        """)
+        attended_trainings = cursor.fetchone()[0]
+
+        # Количество спортсменов, которые пропустили тренировки
+        cursor.execute("""
+            SELECT COUNT(DISTINCT athlete_id)
+            FROM training_attendance
+            WHERE is_present=0
+        """)
+        missed_trainings = cursor.fetchone()[0]
 
         report_text = (
             f"Общее количество спортсменов: {total_athletes}\n"
             f"Активных спортсменов: {active_athletes}\n"
             f"Неактивных спортсменов: {inactive_athletes}\n"
+            f"Спортсмены, участвовавшие в соревнованиях: {participated_competitions}\n"
+            f"Спортсмены, пропустившие соревнования: {absent_competitions}\n"
+            f"Спортсмены, присутствовавшие на тренировках: {attended_trainings}\n"
+            f"Спортсмены, пропустившие тренировки: {missed_trainings}\n"
         )
         self.report_text_area.setText(report_text)
-        
+
 
 class AthleteWindow(QWidget):
     def __init__(self, username):

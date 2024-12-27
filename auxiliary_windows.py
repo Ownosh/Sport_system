@@ -1,9 +1,9 @@
 from PyQt6.QtWidgets import QWidget, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
 import os
-from windows_to_change import CreateGroupWindow, CreateUserWindow,CreateRewardWindow, CreateTrainingWindow, CreateCompetitionWindow
+from windows_to_change import CreateGroupWindow, CreateUserWindow,CreateRewardWindow, CreateTrainingWindow, CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow
 
-# Database connection function
+
 def get_database_connection():
     try:
         return mysql.connector.connect(
@@ -88,11 +88,17 @@ class AwardWindow(BaseWindow):
         column_labels = ["reward_id","sportsman_id", "competition_id", "data", "reward_description"]
         super().__init__(parent_window, "Журнал наград", "Список наград", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_award)
+        self.delete_button.clicked.connect(self.delete_award)
         self.load_data("SELECT reward_id, sportsman_id, competition_id, reward_date, reward_description FROM rewards", 
                        ["reward_id","sportsman_id", "competition_id", "reward_date", "reward_description"])
 
     def add_award(self): 
         self.create_award_window = CreateRewardWindow(self)
+        self.create_award_window.show()
+        self.hide()
+        
+    def delete_award(self): 
+        self.create_award_window = DeleteAwardWindow(self)
         self.create_award_window.show()
         self.hide()
         
@@ -102,11 +108,17 @@ class UserWindow(BaseWindow):
         column_labels = ["ID", "Логин", "Пароль", "Роль", "Телефон", "Email"]
         super().__init__(parent_window, "Журнал пользователей", "Список пользователей", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_user)
+        self.delete_button.clicked.connect(self.delete_user)
         self.load_data("SELECT user_id, username, password, role, phone_number, email FROM users", 
                        ["user_id", "username", "password", "role", "phone_number", "email"])
 
     def add_user(self):
         self.create_user_window = CreateUserWindow(self)
+        self.create_user_window.show()
+        self.hide()
+        
+    def delete_user(self):
+        self.create_user_window = DeleteUserWindow(self)
         self.create_user_window.show()
         self.hide()
 
@@ -116,11 +128,17 @@ class TrainingWindow(BaseWindow):
         column_labels = ["training_id", "group_id", "date", "location"]
         super().__init__(parent_window, "Журнал тренировок", "Тренировки", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_training)
+        self.delete_button.clicked.connect(self.delete_training)
         self.load_data("SELECT training_id, group_id, date, location FROM trainings", 
                ["training_id", "group_id", "date", "location"])
         
     def add_training(self): 
         self.create_user_window = CreateTrainingWindow(self)
+        self.create_user_window.show()
+        self.hide()
+        
+    def delete_training(self): 
+        self.create_user_window = DeleteTrainingWindow(self)
         self.create_user_window.show()
         self.hide()
         
@@ -130,11 +148,17 @@ class CompetitionWindow(BaseWindow):
         column_labels = ["competition_id", "name", "date", "location"]
         super().__init__(parent_window, "Журнал соревнований", "Соревнования", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_competition)
+        self.delete_button.clicked.connect(self.delete_competition)
         self.load_data("SELECT competition_id, name, date, location FROM competitions", 
                ["competition_id", "name", "date", "location"])
         
     def add_competition(self):  
         self.create_user_window = CreateCompetitionWindow(self)
+        self.create_user_window.show()
+        self.hide()
+        
+    def delete_competition(self):  
+        self.create_user_window = DeleteCompetitionWindow(self)
         self.create_user_window.show()
         self.hide()
 
