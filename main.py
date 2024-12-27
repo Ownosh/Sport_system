@@ -3,7 +3,6 @@ import os
 from PyQt6.QtWidgets import (QApplication, QWidget, QTextEdit, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
 from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, GroupWindow, SportsmenWindow, ProfileWindow, TrainerWindow
 import mysql.connector
-import matplotlib.pyplot as plt
 from PyQt6.QtWidgets import QLabel
 
 def get_database_connection():
@@ -44,12 +43,10 @@ class AdminWindow(QWidget):
         self.workspace = QFrame()
         self.workspace.setFrameShape(QFrame.Shape.StyledPanel)
 
-        # Добавляем текстовое поле для отчетов
+
         self.report_text_area = QTextEdit(self.workspace)
         self.report_text_area.setReadOnly(True)
         self.report_text_area.setGeometry(10, 10, 580, 580)
-
-        # Элемент для отображения графиков
         self.chart_label = QLabel(self.workspace)
         self.chart_label.setGeometry(600, 10, 180, 180)
 
@@ -113,7 +110,7 @@ class AdminWindow(QWidget):
 
     def open_training_(self):
         self.hide()
-        self.training_window = TrainingWindow(self)  # Передаем себя как родителя
+        self.training_window = TrainingWindow(self)  
         self.training_window.show()
 
     def open_competition_(self):
@@ -127,7 +124,6 @@ class AdminWindow(QWidget):
         self.user_window.show()
     
     def generate_reports(self):
-        # Подключение к базе данных MySQL
         connection = mysql.connector.connect(
             host="mysql-ownosh.alwaysdata.net",
             user="ownosh",
@@ -135,7 +131,6 @@ class AdminWindow(QWidget):
             database="ownosh_sport_system"
         )
         cursor = connection.cursor()
-        # Генерация общего отчета
         cursor.execute("SELECT COUNT(*) FROM sportsmen")
         total_athletes = cursor.fetchone()[0]
 
@@ -145,7 +140,6 @@ class AdminWindow(QWidget):
         cursor.execute("SELECT COUNT(*) FROM sportsmen WHERE active=0")
         inactive_athletes = cursor.fetchone()[0]
 
-        # Отображение текста отчета
         report_text = (
             f"Общее количество спортсменов: {total_athletes}\n"
             f"Активных спортсменов: {active_athletes}\n"
@@ -154,30 +148,21 @@ class AdminWindow(QWidget):
         self.report_text_area.setText(report_text)
         
 
-        # Генерация диаграммы
-        labels = ['Активные', 'Неактивные']
-        sizes = [active_athletes, inactive_athletes]
-        
-        
-        fig, ax = plt.subplots()
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
-        ax.axis('equal')
-
-
-
 class AthleteWindow(QWidget):
     def __init__(self, username):
         super().__init__()
         self.setWindowTitle("Athlete Window")
         self.setGeometry(350, 150, 800, 600)
 
-        # Верхняя панель с кнопками
         top_nav_layout = QHBoxLayout()
         self.current_username = username
+        print(self.current_username)
 
         self.competition_button = QPushButton("Соревнования")
         self.training_button = QPushButton("Тренировка")
         self.report_button = QPushButton("Отчет")
+        self.profile_button.clicked.connect(self.open_profile_)
+        
         top_nav_layout.addWidget(self.competition_button)
         top_nav_layout.addWidget(self.training_button)
         top_nav_layout.addWidget(self.report_button)
@@ -216,7 +201,6 @@ class AthleteWindow(QWidget):
         self.competition_button.clicked.connect(self.open_competition)
         self.training_button.clicked.connect(self.open_training)
         self.report_button.clicked.connect(self.open_report)
-        self.profile_button.clicked.connect(self.open_profile)
         self.exit_button.clicked.connect(self.close_application)
 
     def open_competition(self):
@@ -247,13 +231,15 @@ class CoachWindow(QWidget):
 
         # Главный лэйаут
         main_layout = QVBoxLayout()
-        self.current_username = username
+        self.current_username1 = username
+        print(self.current_username1)
 
         top_layout = QHBoxLayout()
         self.profile_button = QPushButton("Профиль")
         self.competition_button = QPushButton("Журнал соревнований")
         self.training_button = QPushButton("Журнал тренировок")
         self.award_button = QPushButton("Журнал наград")
+        self.profile_button.clicked.connect(self.open_profile_)
 
         top_layout.addWidget(self.profile_button)
         top_layout.addWidget(self.competition_button)
@@ -304,7 +290,6 @@ class CoachWindow(QWidget):
         self.trainers_button.clicked.connect(self.open_trainer_)
         self.sportsmen_button.clicked.connect(self.open_sportsmen_)
         self.groups_button.clicked.connect(self.open_group_)
-        self.profile_button.clicked.connect(self.open_profile_window)
         self.competition_button.clicked.connect(self.open_competition)
         self.training_button.clicked.connect(self.open_training)
         self.award_button.clicked.connect(self.open_award)
@@ -314,7 +299,7 @@ class CoachWindow(QWidget):
         
     def open_profile_(self):
         self.hide()
-        self.profile_window = ProfileWindow(self, username=self.current_username)
+        self.profile_window = ProfileWindow(self, username=self.current_username1)
         self.profile_window.show()
         
     def open_sportsmen_(self):

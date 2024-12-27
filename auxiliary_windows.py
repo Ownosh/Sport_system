@@ -1,7 +1,7 @@
-from PyQt6.QtWidgets import QWidget,QLineEdit,QGridLayout, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QWidget, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
 import os
-from windows_to_change import CreateGroupWindow, CreateUserWindow,CreateRewardWindow, CreateTrainingWindow
+from windows_to_change import CreateGroupWindow, CreateUserWindow,CreateRewardWindow, CreateTrainingWindow, CreateCompetitionWindow
 
 # Database connection function
 def get_database_connection():
@@ -119,21 +119,24 @@ class TrainingWindow(BaseWindow):
         self.load_data("SELECT training_id, group_id, date, location FROM trainings", 
                ["training_id", "group_id", "date", "location"])
         
-    def add_training(self):
-        print("Метод add_training вызван")  # Отладочное сообщение
+    def add_training(self): 
         self.create_user_window = CreateTrainingWindow(self)
         self.create_user_window.show()
         self.hide()
         
-
-
 class CompetitionWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
         column_labels = ["competition_id", "name", "date", "location"]
         super().__init__(parent_window, "Журнал соревнований", "Соревнования", column_labels, button_labels)
+        self.add_button.clicked.connect(self.add_competition)
         self.load_data("SELECT competition_id, name, date, location FROM competitions", 
                ["competition_id", "name", "date", "location"])
+        
+    def add_competition(self):  
+        self.create_user_window = CreateCompetitionWindow(self)
+        self.create_user_window.show()
+        self.hide()
 
 class GroupWindow(BaseWindow):
     def __init__(self, parent_window):
@@ -172,6 +175,7 @@ class ProfileWindow(QWidget):
         self.setWindowTitle("Профиль")
         self.setGeometry(350, 150, 400, 300)
         self.username = username
+        print(self.username)
 
         self.setup_ui()
         self.load_profile_data()
@@ -215,7 +219,6 @@ class ProfileWindow(QWidget):
                 connection.close()
 
     def go_back(self):
-        """Обработчик для кнопки 'Назад'."""
-        self.close()  # Закрыть текущее окно
+        self.close()  
         self.parent_window.show()  
 
