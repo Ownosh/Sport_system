@@ -1,7 +1,14 @@
 import sys
 from bd_connect import get_database_connection
-from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
+from PyQt6.QtWidgets import (QApplication, QWidget, QTextEdit, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
 from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, GroupWindow, SportsmenWindow, ProfileWindow, TrainerWindow
+import mysql.connector
+from PIL.ImageQt import ImageQt
+import matplotlib.pyplot as plt
+from io import BytesIO
+from PIL import Image
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import QLabel
 class AdminWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -27,12 +34,21 @@ class AdminWindow(QWidget):
         self.workspace = QFrame()
         self.workspace.setFrameShape(QFrame.Shape.StyledPanel)
 
+        # Добавляем текстовое поле для отчетов
+        self.report_text_area = QTextEdit(self.workspace)
+        self.report_text_area.setReadOnly(True)
+        self.report_text_area.setGeometry(10, 10, 580, 580)
+
+        # Элемент для отображения графиков
+        self.chart_label = QLabel(self.workspace)
+        self.chart_label.setGeometry(600, 10, 180, 180)
+
         self.groups_button = QPushButton("Группы")
         self.sportsmen_button = QPushButton("Спортсмены")
         self.trainers_button = QPushButton("Тренера")
         self.reports_button = QPushButton("Отчеты")
         self.exit_button = QPushButton("Выход")
-        self.exit_button.clicked.connect(self.close)  
+        self.exit_button.clicked.connect(self.close)
 
         side_nav_layout = QVBoxLayout()
         side_nav_layout.addWidget(self.groups_button)
@@ -57,7 +73,7 @@ class AdminWindow(QWidget):
         self.training_button.clicked.connect(self.open_training_)
         self.competition_button.clicked.connect(self.open_competition_)
         self.user_button.clicked.connect(self.open_user_)
-    
+        self.reports_button.clicked.connect(self.generate_reports)
         
 
     def open_profile_(self):
@@ -99,6 +115,55 @@ class AdminWindow(QWidget):
         self.hide()
         self.user_window = UserWindow(self)
         self.user_window.show()
+    
+    def generate_reports(self):
+        # Подключение к базе данных MySQL
+        connection = mysql.connector.connect(
+            host="",
+            user="root",
+            password="password",
+            database="sports_db"
+        )
+        cursor = connection.cursor()
+        # Генерация общего отчета
+        cursor.execute("SELECT COUNT(*) FROM sportsmen")
+        total_athletes = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM sportsmen WHERE active=1")
+        active_athletes = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM sportsmen WHERE active=0")
+        inactive_athletes = cursor.fetchone()[0]
+
+        # Отображение текста отчета
+        report_text = (
+            f"Общее количество спортсменов: {total_athletes}\n"
+            f"Активных спортсменов: {active_athletes}\n"
+            f"Неактивных спортсменов: {inactive_athletes}\n"
+        )
+        self.report_text_area.setText(report_text)
+
+        # Генерация диаграммы
+        labels = ['Активные', 'Неактивные']
+        sizes = [active_athletes, inactive_athletes]
+        fig, ax = plt.subplots()
+        ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+        ax.axis('equal')
+
+        # Отображение диаграммы в приложении
+        buf = BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        img = Image.open(buf)
+        qpixmap = QPixmap.fromImage(ImageQt(img))
+        self.chart_label.setPixmap(qpixmap)
+
+        # Очистка ресурсов
+        buf.close()
+        plt.close(fig)
+
+        cursor.close()
+        connection.close()
 
 class AthleteWindow(QWidget):
     def __init__(self):
@@ -109,7 +174,6 @@ class AthleteWindow(QWidget):
         # Верхняя панель с кнопками
         top_nav_layout = QHBoxLayout()
 
-        # Левые кнопки
         self.competition_button = QPushButton("Соревнования")
         self.training_button = QPushButton("Тренировка")
         self.report_button = QPushButton("Отчет")
@@ -117,15 +181,11 @@ class AthleteWindow(QWidget):
         top_nav_layout.addWidget(self.training_button)
         top_nav_layout.addWidget(self.report_button)
 
-        # Разделитель
         spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         top_nav_layout.addSpacerItem(spacer)
-
-        # Правая кнопка
         self.profile_button = QPushButton("Профиль")
         top_nav_layout.addWidget(self.profile_button)
 
-        # Основные вкладки
         self.tabs = QTabWidget()
         self.progress_tab = QWidget()
         self.awards_tab = QWidget()
@@ -133,21 +193,18 @@ class AthleteWindow(QWidget):
         self.recommendations_tab = QWidget()
         self.dopmaterial_tab = QWidget()
 
-        # Добавление вкладок
         self.tabs.addTab(self.progress_tab, "Прогресс")
         self.tabs.addTab(self.awards_tab, "Награды")
         self.tabs.addTab(self.injuries_tab, "Травмы/Болезни")
         self.tabs.addTab(self.recommendations_tab, "Рекомендации")
         self.tabs.addTab(self.dopmaterial_tab, "Дополнительные материалы")
 
-        # Кнопка выхода в нижнем правом углу
         bottom_layout = QHBoxLayout()
         exit_spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.exit_button = QPushButton("Выход")
         bottom_layout.addSpacerItem(exit_spacer)
         bottom_layout.addWidget(self.exit_button)
 
-        # Основной лэйаут
         main_layout = QVBoxLayout()
         main_layout.addLayout(top_nav_layout)
         main_layout.addWidget(self.tabs)
@@ -155,7 +212,6 @@ class AthleteWindow(QWidget):
 
         self.setLayout(main_layout)
 
-        # Подключение кнопок к действиям
         self.competition_button.clicked.connect(self.open_competition)
         self.training_button.clicked.connect(self.open_training)
         self.report_button.clicked.connect(self.open_report)
@@ -169,11 +225,9 @@ class AthleteWindow(QWidget):
 
     def open_training(self):
         self.hide()
-        self.training_window = TrainingWindow(self)  # Передаем себя как родителя
-        self.training_window.show()
+        self.training_window = TrainingWindow(self)  
 
     def open_report(self):
-        # Логика для открытия раздела "Отчет"
         pass
 
     def open_profile(self):
@@ -193,7 +247,6 @@ class CoachWindow(QWidget):
         # Главный лэйаут
         main_layout = QVBoxLayout()
 
-        # Верхний навигационный лэйаут (кнопки "Назад" и другие кнопки)
         top_layout = QHBoxLayout()
         self.profile_button = QPushButton("Профиль")
         self.competition_button = QPushButton("Журнал соревнований")
@@ -217,7 +270,7 @@ class CoachWindow(QWidget):
         self.tabs.addTab(self.training_tab, "Журнал тренировок")
         self.tabs.addTab(self.award_tab, "Журнал наград")
 
-        # Лэйаут для бокового меню
+
         side_nav_layout = QVBoxLayout()
         
         self.groups_button = QPushButton("Группы")
@@ -353,6 +406,7 @@ class LoginWindow(QWidget):
                 stored_password, role = result[0]
 
                 if stored_password == password.strip():
+
                     QMessageBox.information(self, "Успех", "Вы успешно вошли!")
                     self.open_role_window(role)
                 else:
