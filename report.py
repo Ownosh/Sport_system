@@ -5,11 +5,10 @@ import matplotlib.pyplot as plt
 import mysql.connector
 
 class ReportWindow(QWidget):
-    def __init__(self, parent_window):
-        super().__init__()
-        self.parent_window = parent_window
-        self.setWindowTitle("Отчеты")
-        self.setGeometry(350, 150, 800, 600)
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+        self.setGeometry(0, 0, 780, 580)
 
         layout = QVBoxLayout()
 

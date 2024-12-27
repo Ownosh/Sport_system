@@ -32,13 +32,7 @@ class AdminWindow(QWidget):
 
         self.workspace = QFrame()
         self.workspace.setFrameShape(QFrame.Shape.StyledPanel)
-
-
-        self.report_text_area = QTextEdit(self.workspace)
-        self.report_text_area.setReadOnly(True)
-        self.report_text_area.setGeometry(10, 10, 580, 580)
-        self.chart_label = QLabel(self.workspace)
-        self.chart_label.setGeometry(600, 10, 180, 180)
+        self.workspace.setLayout(QVBoxLayout())
 
         self.groups_button = QPushButton("Группы")
         self.sportsmen_button = QPushButton("Спортсмены")
@@ -70,8 +64,21 @@ class AdminWindow(QWidget):
         self.training_button.clicked.connect(self.open_training_)
         self.competition_button.clicked.connect(self.open_competition_)
         self.user_button.clicked.connect(self.open_user_)
-        self.reports_button.clicked.connect(self.open_reports)
-        
+        self.reports_button.clicked.connect(self.display_report)
+
+    def clear_workspace(self):
+        layout = self.workspace.layout()
+        if layout is not None:
+            while layout.count():
+                child = layout.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()
+
+    def display_report(self):
+        self.clear_workspace()
+        report_window = ReportWindow(self.workspace)
+        self.workspace.layout().addWidget(report_window)
+
     def open_profile_(self):
         self.hide()
         self.profile_window = ProfileWindow(self, username=self.current_username)
@@ -111,11 +118,7 @@ class AdminWindow(QWidget):
         self.hide()
         self.user_window = UserWindow(self)
         self.user_window.show()
-    
-    def open_reports(self):
-        self.hide()
-        self.report_window = ReportWindow(self)
-        self.report_window.show()
+
 
 
 
