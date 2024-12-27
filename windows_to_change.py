@@ -1,6 +1,7 @@
 import mysql.connector
-from PyQt6.QtWidgets import QWidget, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
+from PyQt6.QtWidgets import QWidget,QApplication, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PyQt6.QtCore import QDate
+import sys
 import os
 from PyQt6.QtCore import QDateTime
 
@@ -806,25 +807,35 @@ class DeleteTrainingWindow(QWidget):
         if connection:
             cursor = connection.cursor()
             try:
-                # Удаление записи из таблицы training_attendance, связанной с тренировкой
-                cursor.execute("DELETE FROM training_attendance WHERE training_id = %s", (training_id,))
+                # Проверка наличия тренировки в базе данных
+                cursor.execute("SELECT training_id FROM trainings WHERE training_id = %s", (training_id,))
+                training = cursor.fetchone()
+                print(f"ID тренировки: {training_id}, Результат запроса: {training}")
 
-                # Удаление записи из таблицы trainings
-                cursor.execute("DELETE FROM trainings WHERE training_id = %s", (training_id,))
-                connection.commit()
-                QMessageBox.information(self, "Успех", "Тренировка успешно удалена!")
-            except mysql.connector.Error as e:
-                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении тренировки: {e}")
+                if training:
+                    # Удаление записи из таблицы training_attendance, связанной с тренировкой
+                    cursor.execute("DELETE FROM training_attendance WHERE training_id = %s", (training_id,))
+
+                    # Удаление записи из таблицы trainings
+                    cursor.execute("DELETE FROM trainings WHERE training_id = %s", (training_id,))
+                    connection.commit()
+                    QMessageBox.information(self, "Успех", "Тренировка успешно удалена!")
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Такой тренировки нет!")
+            except Exception as e:
+                print(f"Ошибка: {e}")
+                QMessageBox.warning(self, "Ошибка", "Такой тренировки нет!")
                 connection.rollback()
             finally:
                 cursor.close()
                 connection.close()
 
-    def go_back(self): 
-        self.close() 
-        if self.parent_window: 
+    def go_back(self):
+        self.close()
+        if self.parent_window:
             self.parent_window.show()
-            
+
+         
 class DeleteCompetitionWindow(QWidget):
     def __init__(self, parent_window):
         super().__init__()
@@ -881,8 +892,79 @@ class DeleteCompetitionWindow(QWidget):
         self.close()
         if self.parent_window:
             self.parent_window.show()
+            
+            
+class DeleteCompetitionWindow(QWidget):
+    def __init__(self, parent_window):
+        super().__init__()
+        self.parent_window = parent_window
+        self.setWindowTitle("Удаление соревнования")
+        self.setGeometry(350, 150, 400, 200)
+        
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+
+        self.id_label = QLabel("ID соревнования:")
+        self.id_input = QLineEdit()
+        self.delete_button = QPushButton("Удалить соревнование")
+        self.back_button = QPushButton("Назад")
+
+        layout.addWidget(self.id_label)
+        layout.addWidget(self.id_input)
+        layout.addWidget(self.delete_button)
+        layout.addWidget(self.back_button)
+
+        self.setLayout(layout)
+
+        self.delete_button.clicked.connect(self.delete_competition)
+        self.back_button.clicked.connect(self.go_back)
+
+    def delete_competition(self):
+        competition_id = self.id_input.text().strip()
+
+        if not competition_id:
+            QMessageBox.warning(self, "Ошибка", "Введите ID соревнования!")
+            return
+
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                # Проверка наличия соревнования в базе данных
+                cursor.execute("SELECT competition_id FROM competitions WHERE competition_id = %s", (competition_id,))
+                competition = cursor.fetchone()
+                print(f"ID соревнования: {competition_id}, Результат запроса: {competition}")
+
+                if competition:
+                    # Удаление записи из таблицы competition_attendance, связанной с соревнованием
+                    cursor.execute("DELETE FROM competition_attendance WHERE competition_id = %s", (competition_id,))
+
+                    # Удаление записи из таблицы competitions
+                    cursor.execute("DELETE FROM competitions WHERE competition_id = %s", (competition_id,))
+                    connection.commit()
+                    QMessageBox.information(self, "Успех", "Соревнование успешно удалено!")
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Такого соревнования нет!")
+            except Exception as e:
+                print(f"Ошибка: {e}")
+                QMessageBox.warning(self, "Ошибка", "Такого соревнования нет!")
+                connection.rollback()
+            finally:
+                cursor.close()
+                connection.close()
+
+    def go_back(self):
+        self.close()
+        if self.parent_window:
+            self.parent_window.show()
+
+
+
 
 class DeleteUserWindow(QWidget):
+    
     def __init__(self, parent_window):
         super().__init__()
         self.parent_window = parent_window
@@ -920,9 +1002,17 @@ class DeleteUserWindow(QWidget):
         if connection:
             cursor = connection.cursor()
             try:
-                cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
-                connection.commit()
-                QMessageBox.information(self, "Успех", "Пользователь успешно удален!")
+                # Проверка наличия пользователя в базе данных
+                cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
+                user = cursor.fetchone()
+
+                if user:
+                    # Удаление пользователя из таблицы users
+                    cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+                    connection.commit()
+                    QMessageBox.information(self, "Успех", "Пользователь успешно удален!")
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Такого пользователя нет!")
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении пользователя: {e}")
                 connection.rollback()
@@ -934,7 +1024,6 @@ class DeleteUserWindow(QWidget):
         self.close()
         if self.parent_window:
             self.parent_window.show()
-
 
 class DeleteAwardWindow(QWidget):
     def __init__(self, parent_window):
@@ -974,11 +1063,19 @@ class DeleteAwardWindow(QWidget):
         if connection:
             cursor = connection.cursor()
             try:
-                cursor.execute("DELETE FROM rewards WHERE reward_id = %s", (award_id,))
-                connection.commit()
-                QMessageBox.information(self, "Успех", "Награда успешно удалена!")
-            except mysql.connector.Error as e:
-                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении награды: {e}")
+                # Проверка наличия награды в базе данных
+                cursor.execute("SELECT reward_id FROM rewards WHERE reward_id = %s", (award_id,))
+                award = cursor.fetchone()
+
+                if award:
+                    # Удаление награды из таблицы awards
+                    cursor.execute("DELETE FROM rewards WHERE reward_id = %s", (award_id,))
+                    connection.commit()
+                    QMessageBox.information(self, "Успех", "Награда успешно удалена!")
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Такой награды нет!")
+            except Exception as e:
+                QMessageBox.warning(self, "Ошибка", "Такой награды нет!")
                 connection.rollback()
             finally:
                 cursor.close()

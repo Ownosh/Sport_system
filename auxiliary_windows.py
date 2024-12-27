@@ -82,6 +82,58 @@ class BaseWindow(QWidget):
             cursor.close()
             db.close()
 
+class BaseWindow2(QWidget):
+    def __init__(self, parent_window, title, table_label, column_labels):
+        super().__init__()
+        self.parent_window = parent_window
+        self.setWindowTitle(title)
+        self.setGeometry(350, 150, 800, 600)
+
+        main_layout = QVBoxLayout()
+
+        self.back_button = QPushButton("Назад")
+        self.back_button.clicked.connect(self.go_back)
+
+        self.table_label = QLabel(table_label)
+        self.table = QTableWidget()
+        self.table.setColumnCount(len(column_labels))
+        self.table.setHorizontalHeaderLabels(column_labels)
+        for i in range(len(column_labels)):
+            self.table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+
+        top_layout = QHBoxLayout()
+        top_layout.addWidget(self.table_label)
+        top_layout.addStretch()
+        top_layout.addWidget(self.back_button)
+
+        main_layout.addLayout(top_layout)
+        main_layout.addWidget(self.table)
+
+        self.setLayout(main_layout)
+
+    def go_back(self):
+        self.close()
+        self.parent_window.show()
+
+    def load_data(self, query, columns):
+        db = get_database_connection()
+        if not db:
+            return
+
+        cursor = db.cursor(dictionary=True)
+        try:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            self.table.setRowCount(len(rows))
+            for row_index, row in enumerate(rows):
+                for col_index, col in enumerate(columns):
+                    self.table.setItem(row_index, col_index, QTableWidgetItem(str(row[col])))
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка загрузки данных: {e}")
+        finally:
+            cursor.close()
+            db.close()
+
 class AwardWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
