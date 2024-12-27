@@ -1,8 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
-import os
 from windows_to_change import (
-    CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, 
+    CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, EditTrainingWindow, 
     CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow)
 
 
@@ -171,6 +170,7 @@ class TrainingWindow(BaseWindow):
         column_labels = ["training_id", "group_id", "date", "location"]
         super().__init__(parent_window, "Журнал тренировок", "Тренировки", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_training)
+        self.edit_button.clicked.connect(self.edit_training)
         self.delete_button.clicked.connect(self.delete_training)
         self.load_data("SELECT training_id, group_id, date, location FROM trainings", 
                ["training_id", "group_id", "date", "location"])
@@ -179,6 +179,16 @@ class TrainingWindow(BaseWindow):
         self.create_user_window = CreateTrainingWindow(self)
         self.create_user_window.show()
         self.hide()
+        
+    def edit_training(self):
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите тренировку для редактирования")
+            return
+
+        training_id = self.table.item(selected_row, 0).text()
+        self.create_user_window = EditTrainingWindow(self, training_id)
+        self.create_user_window.show()
         
     def delete_training(self): 
         self.create_user_window = DeleteTrainingWindow(self)
@@ -205,16 +215,6 @@ class CompetitionWindow(BaseWindow):
         self.create_user_window.show()
         self.hide()
 
-
-class SportsmenWindow(BaseWindow2):
-    def __init__(self, parent_window):
-        column_labels = ["sportsman_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "gender", "city", "typesport"]
-        super().__init__(parent_window, "Спортсмены", "Список спортсменов", column_labels)
-        
-        self.load_data("SELECT sportsman_id, user_id, first_name, last_name, patronymic, birthdate, gender, city, typesport FROM sportsmen", 
-                       ["sportsman_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "gender", "city", "typesport"])
-
-
 class TrainerWindow(BaseWindow2):
     def __init__(self, parent_window):
         column_labels = ["trainer_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"]
@@ -228,7 +228,7 @@ class ProfileWindow(QWidget):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle("Профиль")
-        self.setGeometry(350, 150, 400, 300)
+        self.setGeometry(350, 150, 200, 200)
         self.username = username
         print(self.username)
 

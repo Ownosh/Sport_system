@@ -1,7 +1,6 @@
 import mysql.connector
-from PyQt6.QtWidgets import QWidget,QApplication, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
+from PyQt6.QtWidgets import QWidget,QDialog, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PyQt6.QtCore import QDate
-import sys
 import os
 from PyQt6.QtCore import QDateTime
 
@@ -480,6 +479,9 @@ class CreateTrainingWindow(QWidget):
                             """, (training_id, athlete_id, is_present))
                         
                         connection.commit()
+                        # Обновляем таблицу с тренировками, указывая правильные аргументы для load_data
+                        self.parent_window.load_data("SELECT training_id, name, date, trainer, group_id, location FROM trainings", 
+                                                     ["training_id", "name", "date", "trainer", "group_id", "location"])  
                         QMessageBox.information(self, "Успех", "Тренировка успешно добавлена!")
                     else:
                         QMessageBox.warning(self, "Ошибка", "Группа не найдена в базе данных.")
@@ -494,8 +496,8 @@ class CreateTrainingWindow(QWidget):
 
     def go_back(self):
         self.close() 
-        self.parent_window.show()  
-        
+        self.parent_window.show()
+
 class CreateCompetitionWindow(QWidget):
     def __init__(self, parent_window):
         super().__init__()
@@ -902,6 +904,189 @@ class DeleteAwardWindow(QWidget):
         if self.parent_window:
             self.parent_window.show()
 
+class EditTrainingWindow(QDialog):
+    def __init__(self, parent_window, training_id):
+        super().__init__()
+        self.parent_window=parent_window
+        self.training_id = training_id
+        self.setWindowTitle("Редактирование тренировки")
+        self.setGeometry(530, 270, 450, 350)
+        
+        self.setup_ui()
+        self.load_data()
+
+    def setup_ui(self):
+        main_layout = QHBoxLayout()
+        form_layout = QVBoxLayout()
+
+        self.name_label = QLabel("Название тренировки:")
+        self.name_input = QLineEdit()
+        form_layout.addWidget(self.name_label)
+        form_layout.addWidget(self.name_input)
+
+        self.datetime_label = QLabel("Дата и время:")
+        self.datetime_input = QDateTimeEdit()
+        form_layout.addWidget(self.datetime_label)
+        form_layout.addWidget(self.datetime_input)
+
+        self.coach_label = QLabel("Тренер:")
+        self.coach_input = QComboBox()
+        form_layout.addWidget(self.coach_label)
+        form_layout.addWidget(self.coach_input)
+
+        self.group_label = QLabel("Группа:")
+        self.group_input = QComboBox()
+        self.group_input.currentIndexChanged.connect(self.load_athletes)
+        form_layout.addWidget(self.group_label)
+        form_layout.addWidget(self.group_input)
+
+        self.location_label = QLabel("Местоположение:")
+        self.location_input = QLineEdit()
+        form_layout.addWidget(self.location_label)
+        form_layout.addWidget(self.location_input)
+
+        buttons_layout = QHBoxLayout()
+        self.save_button = QPushButton("Сохранить изменения")
+        self.back_button = QPushButton("Назад")
+        buttons_layout.addWidget(self.save_button)
+        buttons_layout.addWidget(self.back_button)
+        form_layout.addLayout(buttons_layout)
+
+        main_layout.addLayout(form_layout)
+
+        self.athletes_table = QTableWidget()
+        self.athletes_table.setRowCount(0)
+        self.athletes_table.setColumnCount(2)
+        self.athletes_table.setHorizontalHeaderLabels(["Спортсмен", "Присутствует"])
+        self.athletes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        
+        main_layout.addWidget(self.athletes_table)
+
+        self.setLayout(main_layout)
+
+        self.save_button.clicked.connect(self.save_training)
+        self.back_button.clicked.connect(self.go_back)
+
+
+
+    def load_data(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT name, date, trainer, group_id, location FROM trainings WHERE training_id = %s", (self.training_id,))
+                training = cursor.fetchone()
+                if training:
+                    self.name_input.setText(training[0])
+                    self.datetime_input.setDateTime(QDateTime.fromString(training[1].strftime("%Y-%m-%d %H:%M:%S"), "yyyy-MM-dd HH:mm:ss"))
+                    self.location_input.setText(training[4])
+
+                    cursor.execute("SELECT trainer_id, last_name FROM trainers")
+                    trainers = cursor.fetchall()
+                    for trainer in trainers:
+                        self.coach_input.addItem(trainer[1], trainer[0])
+                    index = self.coach_input.findData(training[2])
+                    if index != -1:
+                        self.coach_input.setCurrentIndex(index)
+
+                    cursor.execute("SELECT group_id, name FROM groups")
+                    groups = cursor.fetchall()
+                    for group in groups:
+                        self.group_input.addItem(group[1], group[0])
+                    index = self.group_input.findData(training[3])
+                    if index != -1:
+                        self.group_input.setCurrentIndex(index)
+
+                    self.load_athletes()
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Тренировка не найдена")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных тренировки: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+
+
+    def load_athletes(self):
+        group_id = self.group_input.currentData()
+        if not group_id:
+            return
+
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("""
+                    SELECT s.sportsman_id, s.last_name, ta.is_present
+                    FROM sportsmen s
+                    LEFT JOIN training_attendance ta ON s.sportsman_id = ta.athlete_id AND ta.training_id = %s
+                    WHERE s.sportsman_id IN (SELECT sportsman_id FROM sportsman_group WHERE group_id = %s)
+                """, (self.training_id, group_id))
+                sportsmen = cursor.fetchall()
+                self.athletes_table.setRowCount(len(sportsmen))
+                for row, athlete in enumerate(sportsmen):
+                    name_item = QTableWidgetItem(athlete[1])
+                    presence_checkbox = QCheckBox()
+                    presence_checkbox.setChecked(athlete[2])
+                    self.athletes_table.setItem(row, 0, name_item)
+                    self.athletes_table.setCellWidget(row, 1, presence_checkbox)
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных спортсменов: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def save_training(self):
+        training_name = self.name_input.text()
+        training_datetime = self.datetime_input.dateTime().toString("yyyy-MM-dd HH:mm:ss")
+        coach_id = self.coach_input.currentData()
+        group_id = self.group_input.currentData()
+        location = self.location_input.text()
+        
+        if not training_name or not training_datetime or not coach_id or not group_id or not location:
+            QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены")
+            return
+
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("""
+                    UPDATE trainings SET name = %s, date = %s, trainer = %s, group_id = %s, location = %s
+                    WHERE training_id = %s
+                """, (training_name, training_datetime, coach_id, group_id, location, self.training_id))
+
+                cursor.execute("DELETE FROM training_attendance WHERE training_id = %s", (self.training_id,))
+                
+                presence_data = []
+                for row in range(self.athletes_table.rowCount()):
+                    athlete_name = self.athletes_table.item(row, 0).text()
+                    is_present = self.athletes_table.cellWidget(row, 1).isChecked()
+                    cursor.execute("SELECT sportsman_id FROM sportsmen WHERE last_name = %s", (athlete_name,))
+                    athlete = cursor.fetchone()
+                    if athlete:
+                        athlete_id = athlete[0]
+                        presence_data.append((self.training_id, athlete_id, is_present))
+                
+                for training_id, athlete_id, is_present in presence_data:
+                    cursor.execute("""
+                        INSERT INTO training_attendance (training_id, athlete_id, is_present)
+                        VALUES (%s, %s, %s)
+                    """, (training_id, athlete_id, is_present))
+                
+                connection.commit()
+                self.parent_window.load_data("SELECT * FROM trainings", ["training_id", "name", "date", "trainer", "group_id", "location"])
+                QMessageBox.information(self, "Успех", "Тренировка успешно сохранена!")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при сохранении изменений: {e}")
+                connection.rollback()
+            finally:
+                cursor.close()
+                connection.close()
+
+    def go_back(self):
+        self.close()
 
 
 

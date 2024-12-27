@@ -10,7 +10,7 @@ class BaseWindow(QWidget):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle(title)
-        self.setGeometry(350, 150, 800, 600)
+        self.setGeometry(350, 150, 600, 400)
 
         main_layout = QVBoxLayout()
 
@@ -257,9 +257,8 @@ class EditGroupDialog(QDialog):
                 cursor.execute("SELECT name, trainer_id FROM groups WHERE group_id = %s", (self.group_id,))
                 group = cursor.fetchone()
                 if group:
-                    self.name_input.setText(group[0])
-                    self.desc_input.setText
-                    self.desc_input.setText(group[1])
+                    self.name_input.setText(str(group[0]))
+                    self.desc_input.setText(str(group[1]))
                 else:
                     QMessageBox.warning(self, "Ошибка", "Группа не найдена")
                     self.reject()
@@ -291,6 +290,7 @@ class EditGroupDialog(QDialog):
             finally:
                 cursor.close()
                 connection.close()
+
 
 
 class AddPeopleDialog(QDialog):

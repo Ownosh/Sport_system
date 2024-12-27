@@ -1,10 +1,10 @@
 import sys
-import os
 from PyQt6.QtWidgets import (QApplication, QWidget, QTextEdit, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
-from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, SportsmenWindow, ProfileWindow, TrainerWindow
+from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, ProfileWindow, TrainerWindow
 import mysql.connector
 from PyQt6.QtWidgets import QLabel
 from group import GroupWindow
+from spwin import SportsmenWindow
 from windows_to_change import get_database_connection
 
 class AdminWindow(QWidget):
@@ -79,9 +79,9 @@ class AdminWindow(QWidget):
         self.profile_window.show()
         
     def open_sportsmen_(self):
+        self.sportsmen_window = SportsmenWindow(self)
+        self.sportsmen_window.show()
         self.hide()
-        self.profile_window = SportsmenWindow(self)
-        self.profile_window.show()
         
     def open_trainer_(self):
         self.hide()
