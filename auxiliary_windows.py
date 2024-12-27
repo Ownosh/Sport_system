@@ -165,14 +165,14 @@ class TrainerWindow(BaseWindow):
         self.load_data("SELECT trainer_id, user_id, first_name, last_name, patronymic, birthdate, specialty FROM trainers", 
                        ["trainer_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"])
         
-   
 class ProfileWindow(QWidget):
-    def __init__(self, parent=None, username=None):
-        super().__init__(parent)
+    def __init__(self, parent_window, username=None):
+        super().__init__()
+        self.parent_window = parent_window
         self.setWindowTitle("Профиль")
         self.setGeometry(350, 150, 400, 300)
         self.username = username
-        
+
         self.setup_ui()
         self.load_profile_data()
 
@@ -215,6 +215,7 @@ class ProfileWindow(QWidget):
                 connection.close()
 
     def go_back(self):
-        self.close()
-        self.parent().show()
+        """Обработчик для кнопки 'Назад'."""
+        self.close()  # Закрыть текущее окно
+        self.parent_window.show()  
 

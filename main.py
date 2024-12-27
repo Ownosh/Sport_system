@@ -1,17 +1,31 @@
 import sys
-from bd_connect import get_database_connection
+import os
 from PyQt6.QtWidgets import (QApplication, QWidget, QTextEdit, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
 from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, GroupWindow, SportsmenWindow, ProfileWindow, TrainerWindow
 import mysql.connector
 import matplotlib.pyplot as plt
 from PyQt6.QtWidgets import QLabel
+
+def get_database_connection():
+    try:
+        return mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME")
+        )
+    except mysql.connector.Error as e:
+        QMessageBox.critical(None, "Ошибка подключения", f"Ошибка при подключении к базе данных: {e}")
+        return None
+    
 class AdminWindow(QWidget):
-    def __init__(self):
+    def __init__(self, username):
         super().__init__()
         self.setWindowTitle("Admin Window")
         self.setGeometry(350, 150, 800, 600)
 
         main_layout = QVBoxLayout()
+        self.current_username = username
 
         self.profile_button = QPushButton("Профиль")
         self.competition_button = QPushButton("Журнал соревнований")
@@ -74,7 +88,7 @@ class AdminWindow(QWidget):
 
     def open_profile_(self):
         self.hide()
-        self.profile_window = ProfileWindow(self)
+        self.profile_window = ProfileWindow(self, username=self.current_username)
         self.profile_window.show()
         
     def open_sportsmen_(self):
@@ -152,13 +166,14 @@ class AdminWindow(QWidget):
 
 
 class AthleteWindow(QWidget):
-    def __init__(self):
+    def __init__(self, username):
         super().__init__()
         self.setWindowTitle("Athlete Window")
         self.setGeometry(350, 150, 800, 600)
 
         # Верхняя панель с кнопками
         top_nav_layout = QHBoxLayout()
+        self.current_username = username
 
         self.competition_button = QPushButton("Соревнования")
         self.training_button = QPushButton("Тренировка")
@@ -216,22 +231,23 @@ class AthleteWindow(QWidget):
     def open_report(self):
         pass
 
-    def open_profile(self):
+    def open_profile_(self):
         self.hide()
-        self.profile_window = ProfileWindow(self)
+        self.profile_window = ProfileWindow(self, username=self.current_username)
         self.profile_window.show()
         
     def close_application(self):
         self.close()
 
 class CoachWindow(QWidget):
-    def __init__(self):
+    def __init__(self, username):
         super().__init__()
         self.setWindowTitle("Coach Window")
         self.setGeometry(350, 150, 800, 600)
 
         # Главный лэйаут
         main_layout = QVBoxLayout()
+        self.current_username = username
 
         top_layout = QHBoxLayout()
         self.profile_button = QPushButton("Профиль")
@@ -298,7 +314,7 @@ class CoachWindow(QWidget):
         
     def open_profile_(self):
         self.hide()
-        self.profile_window = ProfileWindow(self)
+        self.profile_window = ProfileWindow(self, username=self.current_username)
         self.profile_window.show()
         
     def open_sportsmen_(self):
@@ -339,44 +355,43 @@ class CoachWindow(QWidget):
     def exit_application(self):
         self.close()  
 
-
 class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Login Window")  
-        self.setGeometry(530, 270, 450, 350) 
+        self.setWindowTitle("Login Window")
+        self.setGeometry(530, 270, 450, 350)
 
         self.username_label = QLabel("Логин:")
         self.password_label = QLabel("Пароль:")
         self.username_input = QLineEdit()
         self.password_input = QLineEdit()
-        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)  
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.login_button = QPushButton("Вход")
         self.exit_button = QPushButton("Выход")
         main_layout = QVBoxLayout()
         grid_layout = QGridLayout()
-        grid_layout.addWidget(self.username_label, 0, 0)  
-        grid_layout.addWidget(self.username_input, 0, 1)  
-        grid_layout.addWidget(self.password_label, 1, 0)  
-        grid_layout.addWidget(self.password_input, 1, 1)  
+        grid_layout.addWidget(self.username_label, 0, 0)
+        grid_layout.addWidget(self.username_input, 0, 1)
+        grid_layout.addWidget(self.password_label, 1, 0)
+        grid_layout.addWidget(self.password_input, 1, 1)
 
         main_layout.addLayout(grid_layout)
 
         main_layout.addWidget(self.login_button)
         bottom_layout = QHBoxLayout()
-        bottom_layout.addStretch()  
+        bottom_layout.addStretch()
         bottom_layout.addWidget(self.exit_button)
 
         main_layout.addLayout(bottom_layout)
 
         self.setLayout(main_layout)
         self.login_button.clicked.connect(self.check_user_credentials)
-        self.exit_button.clicked.connect(self.close) 
+        self.exit_button.clicked.connect(self.close)
 
         self.db = get_database_connection()
 
     def check_user_credentials(self):
-        username = self.username_input.text().strip() 
+        username = self.username_input.text().strip()
         password = self.password_input.text().strip()
 
         if not username or not password:
@@ -384,38 +399,39 @@ class LoginWindow(QWidget):
             return
 
         try:
+            cursor = self.db.cursor()
             query = "SELECT password, role FROM users WHERE username = %s"
             params = (username,)
-            result = self.db.execute_query(query, params)
+            cursor.execute(query, params)
+            result = cursor.fetchone()
 
             if result:
-                stored_password, role = result[0]
+                stored_password, role = result
 
                 if stored_password == password.strip():
-
                     QMessageBox.information(self, "Успех", "Вы успешно вошли!")
-                    self.open_role_window(role)
+                    self.open_role_window(role, username)
                 else:
                     QMessageBox.warning(self, "Ошибка", "Неверный пароль!")
             else:
                 QMessageBox.warning(self, "Ошибка", "Пользователь не найден!")
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка при подключении к базе данных: {e}")
-        
 
-    def open_role_window(self, role):
+    def open_role_window(self, role, username):
         self.close()
         if role == "admin":
-            self.admin_window = AdminWindow()
+            self.admin_window = AdminWindow(username)
             self.admin_window.show()
         elif role == "sportsman":
-            self.athlete_window = AthleteWindow()
+            self.athlete_window = AthleteWindow(username)
             self.athlete_window.show()
         elif role == "trainer":
-            self.coach_window = CoachWindow()
+            self.coach_window = CoachWindow(username)
             self.coach_window.show()
         else:
             QMessageBox.warning(self, "Ошибка", "Неизвестная роль пользователя!")
+
 
 def main():
     app = QApplication(sys.argv)
