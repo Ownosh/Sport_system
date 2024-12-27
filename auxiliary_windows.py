@@ -1,20 +1,8 @@
-from PyQt6.QtWidgets import QWidget, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QWidget, QComboBox, QTableWidget,QLineEdit, QVBoxLayout, QHBoxLayout, QLabel,QDialog,QDialogButtonBox, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
 import os
-from windows_to_change import CreateGroupWindow, CreateUserWindow,CreateRewardWindow, CreateTrainingWindow, CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow
-
-
-def get_database_connection():
-    try:
-        return mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
-        )
-    except mysql.connector.Error as e:
-        QMessageBox.critical(None, "Ошибка подключения", f"Ошибка при подключении к базе данных: {e}")
-        return None
+from windows_to_change import CreateUserWindow,CreateRewardWindow, CreateTrainingWindow, CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow
+from windows_to_change import get_database_connection
 
 class BaseWindow(QWidget):
     def __init__(self, parent_window, title, table_label, column_labels, button_labels):
@@ -134,6 +122,7 @@ class BaseWindow2(QWidget):
             cursor.close()
             db.close()
 
+
 class AwardWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
@@ -214,33 +203,21 @@ class CompetitionWindow(BaseWindow):
         self.create_user_window.show()
         self.hide()
 
-class GroupWindow(BaseWindow):
+
+class SportsmenWindow(BaseWindow2):
     def __init__(self, parent_window):
-        button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
-        column_labels = ["group_id", "trainer_id", "name"]
-        super().__init__(parent_window, "Группы", "Списпок групп", column_labels, button_labels)
-        self.add_button.clicked.connect(self.add_group)
-        self.load_data("SELECT group_id, trainer_id, name FROM groups", 
-                       ["group_id", "trainer_id", "name"])
+        column_labels = ["sportsman_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "gender", "city", "typesport"]
+        super().__init__(parent_window, "Спортсмены", "Список спортсменов", column_labels)
         
-    def add_group(self):
-        self.create_user_window = CreateGroupWindow(self)
-        self.create_user_window.show()
-        self.hide()
-
-class SportsmenWindow(BaseWindow):
-     def __init__(self, parent_window):
-        button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
-        column_labels = ["sportsman_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "gender","city", "typesport"]
-        super().__init__(parent_window, "Спортсмены", "Списпок спортсменов", column_labels, button_labels)
         self.load_data("SELECT sportsman_id, user_id, first_name, last_name, patronymic, birthdate, gender, city, typesport FROM sportsmen", 
-                       ["sportsman_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "gender","city", "typesport"])
+                       ["sportsman_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "gender", "city", "typesport"])
 
-class TrainerWindow(BaseWindow):
+
+class TrainerWindow(BaseWindow2):
     def __init__(self, parent_window):
-        button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
         column_labels = ["trainer_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"]
-        super().__init__(parent_window, "Тренера", "Списпок тренеров", column_labels, button_labels)
+        super().__init__(parent_window, "Тренера", "Списпок тренеров", column_labels)
+        
         self.load_data("SELECT trainer_id, user_id, first_name, last_name, patronymic, birthdate, specialty FROM trainers", 
                        ["trainer_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"])
         

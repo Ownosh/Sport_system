@@ -1,22 +1,12 @@
 import sys
 import os
 from PyQt6.QtWidgets import (QApplication, QWidget, QTextEdit, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
-from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, GroupWindow, SportsmenWindow, ProfileWindow, TrainerWindow
+from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, SportsmenWindow, ProfileWindow, TrainerWindow
 import mysql.connector
 from PyQt6.QtWidgets import QLabel
+from group import GroupWindow
+from windows_to_change import get_database_connection
 
-def get_database_connection():
-    try:
-        return mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
-        )
-    except mysql.connector.Error as e:
-        QMessageBox.critical(None, "Ошибка подключения", f"Ошибка при подключении к базе данных: {e}")
-        return None
-    
 class AdminWindow(QWidget):
     def __init__(self, username):
         super().__init__()
@@ -99,9 +89,9 @@ class AdminWindow(QWidget):
         self.profile_window.show()
         
     def open_group_(self):
+        self.group_window = GroupWindow(self)
+        self.group_window.show()
         self.hide()
-        self.profile_window = GroupWindow(self)
-        self.profile_window.show()
         
     def open_award_(self):
         self.hide()
