@@ -1,8 +1,10 @@
-from PyQt6.QtWidgets import QWidget, QComboBox, QTableWidget,QLineEdit, QVBoxLayout, QHBoxLayout, QLabel,QDialog,QDialogButtonBox, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QWidget, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
 import os
-from windows_to_change import CreateUserWindow,CreateRewardWindow, CreateTrainingWindow, CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow
-from windows_to_change import get_database_connection
+from windows_to_change import (
+    CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, 
+    CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow)
+
 
 class BaseWindow(QWidget):
     def __init__(self, parent_window, title, table_label, column_labels, button_labels):

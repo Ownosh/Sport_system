@@ -191,6 +191,7 @@ class AthleteWindow(QWidget):
         self.competition_button = QPushButton("Соревнования")
         self.training_button = QPushButton("Тренировка")
         self.report_button = QPushButton("Отчет")
+        self.profile_button = QPushButton("Профиль")
         self.profile_button.clicked.connect(self.open_profile_)
         
         top_nav_layout.addWidget(self.competition_button)
@@ -199,7 +200,6 @@ class AthleteWindow(QWidget):
 
         spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         top_nav_layout.addSpacerItem(spacer)
-        self.profile_button = QPushButton("Профиль")
         top_nav_layout.addWidget(self.profile_button)
 
         self.tabs = QTabWidget()
@@ -241,6 +241,7 @@ class AthleteWindow(QWidget):
     def open_training(self):
         self.hide()
         self.training_window = TrainingWindow(self)  
+        self.training_window.show()
 
     def open_report(self):
         pass
