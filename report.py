@@ -79,8 +79,8 @@ class ReportWindow(QWidget):
 
         report_text = (
             f"Общее количество спортсменов: {total_athletes}\n"
-            f"Активных спортсменов: {active_athletes}\n"
-            f"Неактивных спортсменов: {inactive_athletes}\n"
+            f"Постоянные/пришедшие: {active_athletes}\n"
+            f"Давно не было/ушли: {inactive_athletes}\n"
             f"Спортсмены, участвовавшие в соревнованиях: {participated_competitions}\n"
             f"Спортсмены, пропустившие соревнования: {absent_competitions}\n"
             f"Спортсмены, присутствовавшие на тренировках: {attended_trainings}\n"
@@ -88,20 +88,17 @@ class ReportWindow(QWidget):
         )
         self.report_text_area.setText(report_text)
 
-        # Построение диаграммы
-        labels = ['Активные', 'Неактивные', 'Участвовали в соревнованиях', 'Пропустили соревнования', 'Присутствовали на тренировках', 'Пропустили тренировки']
+        labels = ['Постоянники/пришедшие', 'Давно не было/ушли', 'Участвовали в соревнованиях', 'Пропустили соревнования', 'Присутствовали на тренировках', 'Пропустили тренировки']
         values = [active_athletes, inactive_athletes, participated_competitions, absent_competitions, attended_trainings, missed_trainings]
 
         plt.figure(figsize=(8, 6))
-        plt.barh(labels, values, color='skyblue')
+        plt.barh(labels, values, color='grey')
         plt.xlabel('Количество')
         plt.title('Отчеты по спортсменам')
         plt.tight_layout()
 
-        # Сохранение диаграммы во временный файл
         plt.savefig('report_chart.png')
 
-        # Отображение диаграммы
         pixmap = QPixmap('report_chart.png')
         self.chart_label.setPixmap(pixmap.scaled(self.chart_label.size(), Qt.AspectRatioMode.KeepAspectRatio))
 

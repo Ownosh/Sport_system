@@ -1,8 +1,8 @@
 import mysql.connector
-from PyQt6.QtWidgets import QWidget,QDialog,QFileDialog, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
+from PyQt6.QtWidgets import QWidget,QDialog,QFileDialog,QTextEdit, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PyQt6.QtCore import Qt
 import os
-from PyQt6.QtCore import QDateTime
+from PyQt6.QtCore import QDateTime,QDate
 from PyQt6.QtGui import QPixmap
 
 
@@ -1296,5 +1296,298 @@ class EditCompetitionWindow(QDialog):
         self.close()
 
 
+class EditUserWindow(QWidget):
+    def __init__(self, parent_window, user_id):
+        super().__init__()
+        self.parent_window = parent_window
+        self.user_id = user_id
+        self.setWindowTitle("Изменение пользователя")
+        self.setGeometry(530, 270, 600, 400)  # Увеличиваем размеры окна
 
+        # Элементы формы
+        self.username_label = QLabel("Логин:")
+        self.password_label = QLabel("Пароль:")
+        self.email_label = QLabel("Электронная почта:")
+        self.phone_label = QLabel("Номер телефона:")
+        self.role_label = QLabel("Должность:")
+
+        # Поля ввода
+        self.username_input = QLineEdit()
+        self.password_input = QLineEdit()
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.email_input = QLineEdit()
+        self.phone_input = QLineEdit()
+        self.role_input = QComboBox()
+        self.role_input.addItems(["Sportsman", "Trainer", "Admin"])
+
+        # Кнопка отправки формы
+        self.submit_button = QPushButton("Сохранить изменения")
+        self.submit_button.clicked.connect(self.submit_form)
+
+        # Кнопка "Назад"
+        self.back_button = QPushButton("Назад")
+        self.back_button.clicked.connect(self.go_back)
+
+        # Размещение элементов на форме
+        layout = QVBoxLayout()
+
+        form_layout = QGridLayout()
+        form_layout.addWidget(self.username_label, 0, 0)
+        form_layout.addWidget(self.username_input, 0, 1)
+        form_layout.addWidget(self.password_label, 1, 0)
+        form_layout.addWidget(self.password_input, 1, 1)
+        form_layout.addWidget(self.email_label, 2, 0)
+        form_layout.addWidget(self.email_input, 2, 1)
+        form_layout.addWidget(self.phone_label, 3, 0)
+        form_layout.addWidget(self.phone_input, 3, 1)
+        form_layout.addWidget(self.role_label, 4, 0)
+        form_layout.addWidget(self.role_input, 4, 1)
+
+        layout.addLayout(form_layout)
+        layout.addWidget(self.submit_button)
+        layout.addWidget(self.back_button)  # Добавляем кнопку "Назад"
+
+        self.setLayout(layout)
+
+        # Загружаем данные пользователя
+        self.load_user_data()
+
+    def load_user_data(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                print(f"Загрузка данных для пользователя с ID: {self.user_id}")
+                # Получение данных из таблицы users
+                cursor.execute("SELECT username, password, email, phone_number, role FROM users WHERE user_id = %s", (self.user_id,))
+                user_data = cursor.fetchone()
+                if user_data:
+                    print(f"Данные из таблицы users: {user_data}")
+                    self.username_input.setText(user_data[0])
+                    self.password_input.setText(user_data[1])
+                    self.email_input.setText(user_data[2])
+                    self.phone_input.setText(user_data[3])
+                    index = self.role_input.findText(user_data[4].capitalize())
+                    if index != -1:
+                        self.role_input.setCurrentIndex(index)
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Не удалось загрузить данные пользователя")
+            except mysql.connector.Error as e:
+                print(f"Ошибка при загрузке данных пользователя: {e}")
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных пользователя: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def submit_form(self):
+        username = self.username_input.text().strip()
+        password = self.password_input.text().strip()
+        email = self.email_input.text().strip()
+        phone = self.phone_input.text().strip()
+        role = self.role_input.currentText()
+
+        if not all([username, password, email, phone]):
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля.")
+            return
+
+        db = get_database_connection()
+        if not db:
+            return
+
+        cursor = db.cursor()
+
+        try:
+            # Обновление данных пользователя
+            update_user_query = """
+            UPDATE users SET username = %s, password = %s, email = %s, phone_number = %s, role = %s
+            WHERE user_id = %s
+            """
+            cursor.execute(update_user_query, (username, password, email, phone, role, self.user_id))
+            db.commit()
+
+            # Передача параметров для загрузки данных
+            query = "SELECT user_id, username, password, email, phone_number, role FROM users"
+            columns = ["user_id", "username", "password", "email", "phone_number", "role"]
+            self.parent_window.load_data(query, columns)
+
+            QMessageBox.information(self, "Успех", "Данные пользователя успешно обновлены.")
+            self.close()
+            self.parent_window.show()
+
+        except mysql.connector.Error as e:
+            db.rollback()
+            print(f"Ошибка при выполнении запроса: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при обновлении данных пользователя в базе данных: {e}")
+        finally:
+            cursor.close()
+            db.close()
+
+    def go_back(self):
+        self.close()  # Закрыть текущее окно
+        self.parent_window.show()  # Показать родительское окно
+
+
+class AwardDetailWindow(QWidget):
+    def __init__(self, parent_window, award_id):
+        super().__init__()
+        self.parent_window = parent_window
+        self.award_id = award_id
+        self.setWindowTitle("Изменение награды")
+        self.setGeometry(530, 270, 600, 400)
+
+        # Элементы формы
+        self.award_name_label = QLabel("Название награды:")
+        self.award_date_label = QLabel("Дата награды:")
+        self.description_label = QLabel("Описание:")
+
+        # Поля ввода
+        self.award_name_input = QLineEdit()
+        self.award_date_input = QLineEdit()
+        self.description_input = QTextEdit()
+
+        # Кнопка отправки формы
+        self.submit_button = QPushButton("Сохранить изменения")
+        self.submit_button.clicked.connect(self.submit_form)
+
+        # Кнопка "Назад"
+        self.back_button = QPushButton("Назад")
+        self.back_button.clicked.connect(self.go_back)
+
+        # Размещение элементов на форме
+        layout = QVBoxLayout()
+
+        form_layout = QGridLayout()
+        form_layout.addWidget(self.award_name_label, 0, 0)
+        form_layout.addWidget(self.award_name_input, 0, 1)
+        form_layout.addWidget(self.award_date_label, 1, 0)
+        form_layout.addWidget(self.award_date_input, 1, 1)
+        form_layout.addWidget(self.description_label, 2, 0)
+        form_layout.addWidget(self.description_input, 2, 1, 4, 1)  # Увеличиваем высоту текстового поля
+
+        layout.addLayout(form_layout)
+        layout.addWidget(self.submit_button)
+        layout.addWidget(self.back_button)
+
+        self.setLayout(layout)
+
+        # Загружаем данные награды
+        self.load_award_data()
+
+    def load_award_data(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT reward_id, reward_date, reward_description FROM rewards WHERE reward_id = %s", (self.award_id,))
+                award_data = cursor.fetchone()
+                if award_data:
+                    self.award_name_input.setText(str(award_data[0]))
+                    self.award_date_input.setText(award_data[1].strftime("%Y-%m-%d"))  # Преобразуем дату в строку
+                    self.description_input.setPlainText(award_data[2])
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Не удалось загрузить данные награды")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных награды: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def submit_form(self):
+        award_name = self.award_name_input.text().strip()
+        award_date = self.award_date_input.text().strip()
+        description = self.description_input.toPlainText().strip()
+
+        if not all([award_name, award_date, description]):
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля.")
+            return
+
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("UPDATE rewards SET reward_id = %s, reward_date = %s, reward_description = %s WHERE reward_id = %s", (award_name, award_date, description, self.award_id))
+                connection.commit()
+
+                QMessageBox.information(self, "Успех", "Данные награды успешно обновлены.")
+                self.close()
+                self.parent_window.load_awards()  # Обновляем данные наград в родительском окне
+                self.parent_window.show()
+
+            except mysql.connector.Error as e:
+                connection.rollback()
+                QMessageBox.critical(self, "Ошибка", f"Ошибка при обновлении данных награды: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def go_back(self):
+        """Обработчик для кнопки 'Назад'."""
+        self.close()
+        self.parent_window.show()  # Показать родительское окно
+
+class SelectAwardWindow(QWidget):
+    def __init__(self, parent_window):
+        super().__init__()
+        self.parent_window = parent_window
+        self.setWindowTitle("Выберите награду для изменения")
+        self.setGeometry(530, 270, 450, 150)
+
+        # Элементы формы
+        self.award_name_label = QLabel("ID награды:")
+        self.award_name_input = QLineEdit()
+
+        # Кнопка подтверждения
+        self.submit_button = QPushButton("Изменить награду")
+        self.submit_button.clicked.connect(self.submit_form)
+
+        # Кнопка "Назад"
+        self.back_button = QPushButton("Назад")
+        self.back_button.clicked.connect(self.go_back)
+
+        # Размещение элементов на форме
+        layout = QVBoxLayout()
+
+        form_layout = QGridLayout()
+        form_layout.addWidget(self.award_name_label, 0, 0)
+        form_layout.addWidget(self.award_name_input, 0, 1)
+        layout.addLayout(form_layout)
+        layout.addWidget(self.submit_button)
+        layout.addWidget(self.back_button)
+
+        self.setLayout(layout)
+
+    def submit_form(self):
+        award_id = self.award_name_input.text().strip()
+
+        if not award_id:
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, введите ID награды.")
+            return
+
+        # Проверка существования награды
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT 1 FROM rewards WHERE reward_id = %s", (award_id,))
+                if cursor.fetchone() is None:
+                    QMessageBox.warning(self, "Ошибка", "Указанная награда не найдена.")
+                    return
+                self.edit_award_window = AwardDetailWindow(self, award_id) 
+                self.edit_award_window.show() 
+                self.close()
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при проверке награды: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+            
+
+    def go_back(self):
+        """Обработчик для кнопки 'Назад'."""
+        self.close()
+        self.parent_window.show()
+
+    def load_awards(self):
+        """Этот метод нужен для вызова из AwardDetailWindow"""
+        self.parent_window.load_awards()
 

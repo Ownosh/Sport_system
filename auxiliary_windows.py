@@ -1,7 +1,7 @@
-from PyQt6.QtWidgets import QWidget, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QWidget,QDialog, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
 from windows_to_change import (
-    CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, EditTrainingWindow, EditCompetitionWindow,
+    CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, EditTrainingWindow, EditCompetitionWindow,EditUserWindow,SelectAwardWindow,
     CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow)
 
 
@@ -130,12 +130,36 @@ class AwardWindow(BaseWindow):
         column_labels = ["reward_id","sportsman_id", "competition_id", "data", "reward_description"]
         super().__init__(parent_window, "Журнал наград", "Список наград", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_award)
+        self.edit_button.clicked.connect(self.edit_award)
         self.delete_button.clicked.connect(self.delete_award)
-        self.load_data("SELECT reward_id, sportsman_id, competition_id, reward_date, reward_description FROM rewards", 
-                       ["reward_id","sportsman_id", "competition_id", "reward_date", "reward_description"])
+        self.load_awards()
+
+    def load_awards(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT reward_id, reward_date, reward_description FROM rewards")
+                awards = cursor.fetchall()
+                self.table.setRowCount(len(awards))
+                for row, award in enumerate(awards):
+                    self.table.setItem(row, 0, QTableWidgetItem(str(award[0])))
+                    self.table.setItem(row, 1, QTableWidgetItem(award[1].strftime("%Y-%m-%d")))  # Преобразуем дату в строку
+                    self.table.setItem(row, 2, QTableWidgetItem(award[2]))
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке наград: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
 
     def add_award(self): 
         self.create_award_window = CreateRewardWindow(self)
+        self.create_award_window.show()
+        self.hide()
+        
+    def edit_award(self): 
+        self.create_award_window = SelectAwardWindow(self)
         self.create_award_window.show()
         self.hide()
         
@@ -150,6 +174,7 @@ class UserWindow(BaseWindow):
         column_labels = ["ID", "Логин", "Пароль", "Роль", "Телефон", "Email"]
         super().__init__(parent_window, "Журнал пользователей", "Список пользователей", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_user)
+        self.edit_button.clicked.connect(self.edit_user)
         self.delete_button.clicked.connect(self.delete_user)
         self.load_data("SELECT user_id, username, password, role, phone_number, email FROM users", 
                        ["user_id", "username", "password", "role", "phone_number", "email"])
@@ -158,6 +183,17 @@ class UserWindow(BaseWindow):
         self.create_user_window = CreateUserWindow(self)
         self.create_user_window.show()
         self.hide()
+        
+    def edit_user(self):
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите пользователя для редактирования")
+            return
+
+        user_id = self.table.item(selected_row, 0).text()
+        self.edit_user_window = EditUserWindow(self, user_id)
+        self.edit_user_window.show()
+
         
     def delete_user(self):
         self.create_user_window = DeleteUserWindow(self)
@@ -235,6 +271,103 @@ class TrainerWindow(BaseWindow2):
         self.load_data("SELECT trainer_id, user_id, first_name, last_name, patronymic, birthdate, specialty FROM trainers", 
                        ["trainer_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"])
         
+        
+class GroupWindowForTrainers(BaseWindow2):
+    def __init__(self, parent_window):
+        column_labels = ["group_id", "trainer_id", "name"]
+        super().__init__(parent_window, "Группы", "Список групп", column_labels)
+        
+        self.load_data("SELECT group_id, trainer_id, name FROM groups", 
+                       ["group_id", "trainer_id", "name"])
+
+        # Добавляем кнопку для просмотра участников группы
+        self.view_members_button = QPushButton("Просмотреть участников")
+        self.view_members_button.clicked.connect(self.view_members)
+        self.main_layout.addWidget(self.view_members_button)
+        
+        
+
+    def view_members(self):
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите группу для просмотра участников")
+            return
+
+        group_id = self.table.item(selected_row, 0).text()
+        self.members_window = GroupMembersWindow(self, group_id)
+        self.members_window.show()
+
+class GroupWindowForTrainers(BaseWindow2):
+    def __init__(self, parent_window):
+        column_labels = ["group_id", "trainer_id", "name"]
+        super().__init__(parent_window, "Группы", "Список групп", column_labels)
+        
+        self.load_data("SELECT group_id, trainer_id, name FROM groups", 
+                       ["group_id", "trainer_id", "name"])
+
+        # Добавляем кнопку для просмотра участников группы
+        self.view_members_button = QPushButton("Просмотреть участников")
+        self.view_members_button.clicked.connect(self.view_members)
+        self.layout().addWidget(self.view_members_button)
+
+    def view_members(self):
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите группу для просмотра участников")
+            return
+
+        group_id = self.table.item(selected_row, 0).text()
+        self.members_window = GroupMembersWindow(self, group_id)
+        self.members_window.show()
+
+class GroupMembersWindow(QDialog):
+    def __init__(self, parent_window, group_id):
+        super().__init__()
+        self.parent_window=parent_window
+        self.group_id = group_id
+        self.setWindowTitle("Участники группы")
+        self.setGeometry(530, 270, 600, 400)
+
+        layout = QVBoxLayout()
+
+        self.table = QTableWidget()
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(["ID", "Имя", "Фамилия"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self.table)
+
+        self.close_button = QPushButton("Закрыть")
+        self.close_button.clicked.connect(self.close)
+        layout.addWidget(self.close_button)
+
+        self.setLayout(layout)
+        self.load_members()
+
+    def load_members(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                query = """
+                SELECT gm.sportsman_id, s.first_name, s.last_name 
+                FROM sportsman_group gm
+                JOIN sportsmen s ON gm.sportsman_id = s.sportsman_id
+                WHERE gm.group_id = %s
+                """
+                cursor.execute(query, (self.group_id,))
+                members = cursor.fetchall()
+                self.table.setRowCount(len(members))
+                for row, member in enumerate(members):
+                    self.table.setItem(row, 0, QTableWidgetItem(str(member[0])))
+                    self.table.setItem(row, 1, QTableWidgetItem(member[1]))
+                    self.table.setItem(row, 2, QTableWidgetItem(member[2]))
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке участников группы: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+
 class ProfileWindow(QWidget):
     def __init__(self, parent_window, username=None):
         super().__init__()

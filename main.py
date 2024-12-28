@@ -1,10 +1,13 @@
 import sys
 from PyQt6.QtWidgets import (QApplication, QWidget, QTextEdit, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
-from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, ProfileWindow, TrainerWindow
+from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, ProfileWindow, TrainerWindow, GroupWindowForTrainers
 from PyQt6.QtWidgets import QLabel
 from group import GroupWindow
 from spwin import SportsmenWindow
 from report import ReportWindow
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt
+import mysql.connector
 from windows_to_change import get_database_connection
 
 class AdminWindow(QWidget):
@@ -37,7 +40,7 @@ class AdminWindow(QWidget):
         self.groups_button = QPushButton("Группы")
         self.sportsmen_button = QPushButton("Спортсмены")
         self.trainers_button = QPushButton("Тренера")
-        self.reports_button = QPushButton("Отчеты")
+        self.reports_button = QPushButton("Общий отчет")
         self.exit_button = QPushButton("Выход")
         self.exit_button.clicked.connect(self.close)
 
@@ -119,9 +122,6 @@ class AdminWindow(QWidget):
         self.user_window = UserWindow(self)
         self.user_window.show()
 
-
-
-
 class AthleteWindow(QWidget):
     def __init__(self, username):
         super().__init__()
@@ -177,6 +177,111 @@ class AthleteWindow(QWidget):
         self.report_button.clicked.connect(self.open_report)
         self.exit_button.clicked.connect(self.close_application)
 
+        self.load_athlete_info()
+
+    def load_athlete_info(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT first_name, last_name, birthdate, gender, city, typesport, photo FROM sportsmen WHERE user_id = (SELECT user_id FROM users WHERE username = %s)", (self.current_username,))
+                athlete_info = cursor.fetchone()
+                if athlete_info:
+                    info_layout = QHBoxLayout()
+
+                    # Добавление фотографии справа
+                    right_layout = QVBoxLayout()
+                    photo_label = QLabel()
+                    if athlete_info[6]:
+                        pixmap = QPixmap()
+                        pixmap.loadFromData(athlete_info[6])
+                        photo_label.setPixmap(pixmap.scaled(150, 150, Qt.AspectRatioMode.KeepAspectRatio))
+                    else:
+                        photo_label.setText("Фото отсутствует")
+                    right_layout.addWidget(photo_label)
+
+                    left_layout = QVBoxLayout()
+                    left_layout.addWidget(QLabel(f"Имя: {athlete_info[0]}"))
+                    left_layout.addWidget(QLabel(f"Фамилия: {athlete_info[1]}"))
+                    left_layout.addWidget(QLabel(f"Дата рождения: {athlete_info[2]}"))
+                    left_layout.addWidget(QLabel(f"Пол: {athlete_info[3]}"))
+                    left_layout.addWidget(QLabel(f"Город: {athlete_info[4]}"))
+                    left_layout.addWidget(QLabel(f"Вид спорта: {athlete_info[5]}"))
+
+                    info_layout.addLayout(left_layout)
+                    info_layout.addLayout(right_layout)
+                    self.progress_tab.setLayout(info_layout)
+
+                    self.load_injury_history()
+                    self.load_recommendations()
+                    self.load_dopmaterials()
+
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Не удалось загрузить информацию о спортсмене")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных спортсмена: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def load_injury_history(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT period, injury_description FROM injuries WHERE sportsman_id = (SELECT sportsman_id FROM sportsmen WHERE user_id = (SELECT user_id FROM users WHERE username = %s))", (self.current_username,))
+                injuries = cursor.fetchall()
+                injury_layout = QVBoxLayout()
+                for injury in injuries:
+                    injury_layout.addWidget(QLabel(f"Период: {injury[0]}"))
+                    injury_layout.addWidget(QLabel(f"Описание: {injury[1]}"))
+                self.injuries_tab.setLayout(injury_layout)
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке истории травм: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def load_recommendations(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT recommendation_id FROM recommendations WHERE sportsman_id = (SELECT sportsman_id FROM sportsmen WHERE user_id = (SELECT user_id FROM users WHERE username = %s))", (self.current_username,))
+                recommendations = cursor.fetchall()
+                recommendations_layout = QVBoxLayout()
+                for recommendation in recommendations:
+                    recommendations_layout.addWidget(QLabel(recommendation[0]))
+                self.recommendations_tab.setLayout(recommendations_layout)
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке рекомендаций: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def load_dopmaterials(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT material FROM dopmaterials WHERE sportsman_id = (SELECT sportsman_id FROM sportsmen WHERE user_id = (SELECT user_id FROM users WHERE username = %s))", (self.current_username,))
+                materials = cursor.fetchall()
+                materials_layout = QVBoxLayout()
+                for material in materials:
+                    materials_layout.addWidget(QLabel(material[0]))
+                self.dopmaterial_tab.setLayout(materials_layout)
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке дополнительных материалов: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+            
+
+    def open_profile_(self):
+        self.hide()
+        self.profile_window = ProfileWindow(self, username=self.current_username)
+        self.profile_window.show()
+
     def open_competition(self):
         self.hide()
         self.competition_window = CompetitionWindow(self)
@@ -190,13 +295,10 @@ class AthleteWindow(QWidget):
     def open_report(self):
         pass
 
-    def open_profile_(self):
-        self.hide()
-        self.profile_window = ProfileWindow(self, username=self.current_username)
-        self.profile_window.show()
-        
     def close_application(self):
         self.close()
+
+
 
 class CoachWindow(QWidget):
     def __init__(self, username):
@@ -289,7 +391,7 @@ class CoachWindow(QWidget):
         
     def open_group_(self):
         self.hide()
-        self.profile_window = GroupWindow(self)
+        self.profile_window = GroupWindowForTrainers(self)
         self.profile_window.show()
         
     def open_profile_window(self):
