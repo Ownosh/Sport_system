@@ -3,6 +3,10 @@ import mysql.connector
 from windows_to_change import (
     CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, EditTrainingWindow, EditCompetitionWindow,EditUserWindow,SelectAwardWindow,
     CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow)
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap
+
+from PyQt6.QtWidgets import QSizePolicy
 
 
 class BaseWindow(QWidget):
@@ -127,30 +131,31 @@ class BaseWindow2(QWidget):
 class AwardWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
-        column_labels = ["reward_id","sportsman_id", "competition_id", "data", "reward_description"]
+        column_labels = ["reward_id", "data", "reward_description"]
         super().__init__(parent_window, "Журнал наград", "Список наград", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_award)
         self.edit_button.clicked.connect(self.edit_award)
         self.delete_button.clicked.connect(self.delete_award)
-        self.load_awards()
-
+        
     def load_awards(self):
         connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
             try:
-                cursor.execute("SELECT reward_id, reward_date, reward_description FROM rewards")
+                cursor.execute("SELECT award_, award_date, description FROM awards WHERE sportsman_id = %s", (self.sportsman_id,))
                 awards = cursor.fetchall()
                 self.table.setRowCount(len(awards))
                 for row, award in enumerate(awards):
-                    self.table.setItem(row, 0, QTableWidgetItem(str(award[0])))
-                    self.table.setItem(row, 1, QTableWidgetItem(award[1].strftime("%Y-%m-%d")))  # Преобразуем дату в строку
+                    self.table.setItem(row, 0, QTableWidgetItem(award[0]))
+                    award_date = award[1].strftime("%Y-%m-%d") if award[1] else "Дата отсутствует"
+                    self.table.setItem(row, 1, QTableWidgetItem(award_date))
                     self.table.setItem(row, 2, QTableWidgetItem(award[2]))
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке наград: {e}")
             finally:
                 cursor.close()
                 connection.close()
+
 
 
     def add_award(self): 
@@ -272,30 +277,6 @@ class TrainerWindow(BaseWindow2):
                        ["trainer_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"])
         
         
-class GroupWindowForTrainers(BaseWindow2):
-    def __init__(self, parent_window):
-        column_labels = ["group_id", "trainer_id", "name"]
-        super().__init__(parent_window, "Группы", "Список групп", column_labels)
-        
-        self.load_data("SELECT group_id, trainer_id, name FROM groups", 
-                       ["group_id", "trainer_id", "name"])
-
-        # Добавляем кнопку для просмотра участников группы
-        self.view_members_button = QPushButton("Просмотреть участников")
-        self.view_members_button.clicked.connect(self.view_members)
-        self.main_layout.addWidget(self.view_members_button)
-        
-        
-
-    def view_members(self):
-        selected_row = self.table.currentRow()
-        if selected_row == -1:
-            QMessageBox.warning(self, "Ошибка", "Выберите группу для просмотра участников")
-            return
-
-        group_id = self.table.item(selected_row, 0).text()
-        self.members_window = GroupMembersWindow(self, group_id)
-        self.members_window.show()
 
 class GroupWindowForTrainers(BaseWindow2):
     def __init__(self, parent_window):
@@ -369,32 +350,46 @@ class GroupMembersWindow(QDialog):
 
 
 class ProfileWindow(QWidget):
-    def __init__(self, parent_window, username=None):
+    def __init__(self, username=None):
         super().__init__()
-        self.parent_window = parent_window
-        self.setWindowTitle("Профиль")
-        self.setGeometry(350, 150, 200, 200)
         self.username = username
-        print(self.username)
-
         self.setup_ui()
         self.load_profile_data()
 
     def setup_ui(self):
+        # Основной вертикальный макет
         layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
+        # Фото пользователя
+        self.photo_label = QLabel("Фото отсутствует")
+        self.photo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.photo_label.setFixedSize(400, 300)  # Фиксированный размер для фото
+        self.photo_label.setStyleSheet("border: 1px solid #d0d0d0; background-color: #505050; ")  # Граница для визуализации
+        layout.addWidget(self.photo_label)
+
+        # Контейнер для данных с серым фоном
+        data_container = QWidget()
+        data_container_layout = QVBoxLayout(data_container)
+        data_container_layout.setContentsMargins(10, 10, 10, 10)  # Отступы внутри контейнера
+        data_container_layout.setSpacing(5)  # Расстояние между метками
+        data_container.setStyleSheet("""
+            background-color: #505050;  /* Светло-серый фон */
+            border: 1px solid #d0d0d0;  /* Легкая граница */
+        """)
+
+        # Метки данных
         self.role_label = QLabel("Роль: ")
         self.username_label = QLabel("Логин: ")
         self.password_label = QLabel("Пароль: ")
 
-        layout.addWidget(self.role_label)
-        layout.addWidget(self.username_label)
-        layout.addWidget(self.password_label)
+        for label in (self.role_label, self.username_label, self.password_label):
+            label.setAlignment(Qt.AlignmentFlag.AlignLeft)  # Выравнивание текста слева
+            label.setStyleSheet("font-size: 14px; padding: 2px;")  # Увеличенный шрифт и отступы
+            data_container_layout.addWidget(label)
 
-        self.back_button = QPushButton("Назад")
-        self.back_button.clicked.connect(self.go_back)
-
-        layout.addWidget(self.back_button)
+        layout.addWidget(data_container)  # Добавляем контейнер в основной макет
+        layout.setSpacing(15)  # Разделяем фото и данные
 
         self.setLayout(layout)
 
@@ -403,13 +398,23 @@ class ProfileWindow(QWidget):
         if connection and self.username:
             cursor = connection.cursor()
             try:
-                cursor.execute("SELECT role, password FROM users WHERE username = %s", (self.username,))
+                # Получение данных пользователя
+                cursor.execute("SELECT role, password, photo FROM users WHERE username = %s", (self.username,))
                 user = cursor.fetchone()
                 if user:
-                    role, password = user
+                    role, password, photo = user
                     self.role_label.setText(f"Роль: {role}")
                     self.username_label.setText(f"Логин: {self.username}")
                     self.password_label.setText(f"Пароль: {password}")
+
+                    # Загрузка фото пользователя
+                    if photo:
+                        pixmap = QPixmap()
+                        pixmap.loadFromData(photo)  # Загрузка изображения из BLOB
+                        pixmap = pixmap.scaled(400, 300, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                        self.photo_label.setPixmap(pixmap)
+                    else:
+                        self.photo_label.setText("Фото отсутствует")
                 else:
                     QMessageBox.warning(self, "Ошибка", "Пользователь не найден!")
             except mysql.connector.Error as e:
@@ -418,7 +423,7 @@ class ProfileWindow(QWidget):
                 cursor.close()
                 connection.close()
 
-    def go_back(self):
-        self.close()  
-        self.parent_window.show()  
+
+
+
 

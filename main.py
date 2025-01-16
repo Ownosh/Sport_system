@@ -1,13 +1,17 @@
 import sys
-from PyQt6.QtWidgets import (QApplication, QWidget, QTextEdit, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox, QTabWidget, QFrame,QSpacerItem, QSizePolicy)
-from auxiliary_windows import AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, ProfileWindow, TrainerWindow, GroupWindowForTrainers
-from PyQt6.QtWidgets import QLabel
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, 
+    QHBoxLayout, QGridLayout, QMessageBox, QFrame
+)
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt
+from auxiliary_windows import (
+    AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, 
+    ProfileWindow, TrainerWindow, GroupWindowForTrainers, GroupMembersWindow
+)
 from group import GroupWindow
 from spwin import SportsmenWindow
 from report import ReportWindow
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt
-import mysql.connector
 from windows_to_change import get_database_connection
 
 class AdminWindow(QWidget):
@@ -16,41 +20,48 @@ class AdminWindow(QWidget):
         self.setWindowTitle("Admin Window")
         self.setGeometry(350, 150, 800, 600)
 
-        main_layout = QVBoxLayout()
         self.current_username = username
+        self.setup_ui()
 
-        self.profile_button = QPushButton("Профиль")
-        self.competition_button = QPushButton("Журнал соревнований")
-        self.training_button = QPushButton("Журнал тренировок")
-        self.user_button = QPushButton("Журнал пользователей")
-        self.award_button = QPushButton("Журнал наград")
-        self.profile_button.clicked.connect(self.open_profile_)
+    def setup_ui(self):
+        main_layout = QVBoxLayout()
 
+        # Рабочая область
+        self.workspace = QFrame()
+        self.workspace.setFrameShape(QFrame.Shape.StyledPanel)
+        self.workspace.setLayout(QVBoxLayout())
+
+        # Верхняя навигация
         top_nav_layout = QHBoxLayout()
+        self.profile_button = self.create_button("Профиль", self.open_profile_)
+        self.competition_button = self.create_button("Журнал соревнований", self.open_competition_)
+        self.training_button = self.create_button("Журнал тренировок", self.open_training_)
+        self.user_button = self.create_button("Журнал пользователей", self.open_user_)
+        self.award_button = self.create_button("Журнал наград", self.open_award_)
+
         top_nav_layout.addWidget(self.profile_button)
         top_nav_layout.addWidget(self.competition_button)
         top_nav_layout.addWidget(self.training_button)
         top_nav_layout.addWidget(self.user_button)
         top_nav_layout.addWidget(self.award_button)
 
-        self.workspace = QFrame()
-        self.workspace.setFrameShape(QFrame.Shape.StyledPanel)
-        self.workspace.setLayout(QVBoxLayout())
+   
 
-        self.groups_button = QPushButton("Группы")
-        self.sportsmen_button = QPushButton("Спортсмены")
-        self.trainers_button = QPushButton("Тренера")
-        self.reports_button = QPushButton("Общий отчет")
-        self.exit_button = QPushButton("Выход")
-        self.exit_button.clicked.connect(self.close)
-
+    # Боковая навигация
         side_nav_layout = QVBoxLayout()
-        side_nav_layout.addWidget(self.groups_button)
-        side_nav_layout.addWidget(self.sportsmen_button)
-        side_nav_layout.addWidget(self.trainers_button)
-        side_nav_layout.addWidget(self.reports_button)
-        side_nav_layout.addStretch()
-        side_nav_layout.addWidget(self.exit_button)
+        self.nav_buttons = {
+            "Группы": self.open_group_,
+            "Спортсмены": self.open_sportsmen_,
+            "Тренера": self.open_trainer_,
+            "Общий отчет": self.display_report
+        }
+
+        for label, handler in self.nav_buttons.items():
+            side_nav_layout.addWidget(self.create_button(label, handler))
+
+        side_nav_layout.addStretch()  
+        self.exit_button = self.create_button("Выход", self.close)
+        side_nav_layout.addWidget(self.exit_button)  
 
         content_layout = QHBoxLayout()
         content_layout.addWidget(self.workspace)
@@ -58,69 +69,60 @@ class AdminWindow(QWidget):
 
         main_layout.addLayout(top_nav_layout)
         main_layout.addLayout(content_layout)
-
         self.setLayout(main_layout)
-        self.trainers_button.clicked.connect(self.open_trainer_)
-        self.sportsmen_button.clicked.connect(self.open_sportsmen_)
-        self.groups_button.clicked.connect(self.open_group_)
-        self.award_button.clicked.connect(self.open_award_)
-        self.training_button.clicked.connect(self.open_training_)
-        self.competition_button.clicked.connect(self.open_competition_)
-        self.user_button.clicked.connect(self.open_user_)
-        self.reports_button.clicked.connect(self.display_report)
 
-    def clear_workspace(self):
-        layout = self.workspace.layout()
-        if layout is not None:
-            while layout.count():
-                child = layout.takeAt(0)
-                if child.widget():
-                    child.widget().deleteLater()
+    def create_button(self, text, handler):
+        button = QPushButton(text)
+        button.clicked.connect(handler)
+        return button
+
+    def open_window(self, window_class, *args, **kwargs):
+        self.hide()
+        window = window_class(self, *args, **kwargs)
+        window.show()
+        return window
 
     def display_report(self):
         self.clear_workspace()
         report_window = ReportWindow(self.workspace)
         self.workspace.layout().addWidget(report_window)
 
-    def open_profile_(self):
-        self.hide()
-        self.profile_window = ProfileWindow(self, username=self.current_username)
-        self.profile_window.show()
-        
-    def open_sportsmen_(self):
-        self.sportsmen_window = SportsmenWindow(self)
-        self.sportsmen_window.show()
-        self.hide()
-        
-    def open_trainer_(self):
-        self.hide()
-        self.profile_window = TrainerWindow(self)
-        self.profile_window.show()
-        
+    def clear_workspace(self):
+        layout = self.workspace.layout()
+        if layout is not None:
+            while layout.count():
+                child = layout.takeAt(0)
+                if widget := child.widget():
+                    widget.setParent(None)
+
     def open_group_(self):
-        self.group_window = GroupWindow(self)
-        self.group_window.show()
-        self.hide()
-        
+        self.open_window(GroupWindow)
+
+    def open_sportsmen_(self):
+        self.open_window(SportsmenWindow)
+
+    def open_trainer_(self):
+        self.open_window(TrainerWindow)
+
     def open_award_(self):
-        self.hide()
-        self.award_window = AwardWindow(self)
-        self.award_window.show()
+        self.open_window(AwardWindow)
 
     def open_training_(self):
-        self.hide()
-        self.training_window = TrainingWindow(self)  
-        self.training_window.show()
+        self.open_window(TrainingWindow)
 
     def open_competition_(self):
-        self.hide()
-        self.competition_window = CompetitionWindow(self)
-        self.competition_window.show()
+        self.open_window(CompetitionWindow)
 
     def open_user_(self):
-        self.hide()
-        self.user_window = UserWindow(self)
-        self.user_window.show()
+        self.open_window(UserWindow)
+        
+    def open_profile_(self):
+        self.clear_workspace()
+        profile_widget = ProfileWindow(username=self.current_username)
+        self.workspace.layout().addWidget(profile_widget)
+
+        
+        
 
 class AthleteWindow(QWidget):
     def __init__(self, username):
@@ -132,15 +134,15 @@ class AthleteWindow(QWidget):
         self.current_username = username
         print(self.current_username)
 
-        self.competition_button = QPushButton("Соревнования")
-        self.training_button = QPushButton("Тренировка")
         self.report_button = QPushButton("Отчет")
+        self.group_button = QPushButton("Группы")
         self.profile_button = QPushButton("Профиль")
-        self.profile_button.clicked.connect(self.open_profile_)
         
-        top_nav_layout.addWidget(self.competition_button)
-        top_nav_layout.addWidget(self.training_button)
+        self.profile_button.clicked.connect(self.open_profile_)
+        self.group_button.clicked.connect(self.open_group)
+        
         top_nav_layout.addWidget(self.report_button)
+        top_nav_layout.addWidget(self.group_button)
 
         spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         top_nav_layout.addSpacerItem(spacer)
@@ -152,12 +154,16 @@ class AthleteWindow(QWidget):
         self.injuries_tab = QWidget()
         self.recommendations_tab = QWidget()
         self.dopmaterial_tab = QWidget()
+        self.competition_tab = QWidget()
+        self.training_tab = QWidget()
 
         self.tabs.addTab(self.progress_tab, "Прогресс")
         self.tabs.addTab(self.awards_tab, "Награды")
         self.tabs.addTab(self.injuries_tab, "Травмы/Болезни")
         self.tabs.addTab(self.recommendations_tab, "Рекомендации")
         self.tabs.addTab(self.dopmaterial_tab, "Дополнительные материалы")
+        self.tabs.addTab(self.competition_tab, "Соревнования")
+        self.tabs.addTab(self.training_tab, "Тренировки")
 
         bottom_layout = QHBoxLayout()
         exit_spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
@@ -172,8 +178,6 @@ class AthleteWindow(QWidget):
 
         self.setLayout(main_layout)
 
-        self.competition_button.clicked.connect(self.open_competition)
-        self.training_button.clicked.connect(self.open_training)
         self.report_button.clicked.connect(self.open_report)
         self.exit_button.clicked.connect(self.close_application)
 
@@ -215,6 +219,9 @@ class AthleteWindow(QWidget):
                     self.load_injury_history()
                     self.load_recommendations()
                     self.load_dopmaterials()
+                    self.load_competitions()
+                    self.load_trainings()
+                    self.load_awards()
 
                 else:
                     QMessageBox.warning(self, "Ошибка", "Не удалось загрузить информацию о спортсмене")
@@ -233,8 +240,12 @@ class AthleteWindow(QWidget):
                 injuries = cursor.fetchall()
                 injury_layout = QVBoxLayout()
                 for injury in injuries:
-                    injury_layout.addWidget(QLabel(f"Период: {injury[0]}"))
-                    injury_layout.addWidget(QLabel(f"Описание: {injury[1]}"))
+                    injury_widget = QWidget()
+                    injury_layout_inner = QVBoxLayout(injury_widget)
+                    injury_layout_inner.addWidget(QLabel(f"Период: {injury[0]}"))
+                    injury_layout_inner.addWidget(QLabel(f"Описание: {injury[1]}"))
+                    injury_widget.setLayout(injury_layout_inner)
+                    injury_layout.addWidget(injury_widget)
                 self.injuries_tab.setLayout(injury_layout)
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке истории травм: {e}")
@@ -275,28 +286,112 @@ class AthleteWindow(QWidget):
             finally:
                 cursor.close()
                 connection.close()
-            
+
+    def load_competitions(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("""
+                    SELECT c.name, c.date
+                    FROM competition_attendance ca
+                    JOIN competitions c ON ca.competition_id = c.competition_id
+                    WHERE ca.athlete_id = (SELECT sportsman_id FROM sportsmen WHERE user_id = (SELECT user_id FROM users WHERE username = %s))
+                """, (self.current_username,))
+                competitions = cursor.fetchall()
+                competitions_layout = QVBoxLayout()
+                for competition in competitions:
+                    competitions_layout.addWidget(QLabel(f"Название: {competition[0]}, Дата: {competition[1]}"))
+                self.competition_tab.setLayout(competitions_layout)
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке соревнований: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def load_trainings(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("""
+                    SELECT t.name, t.date
+                    FROM training_attendance ta
+                    JOIN trainings t ON ta.training_id = t.training_id
+                    WHERE ta.athlete_id = (SELECT sportsman_id FROM sportsmen WHERE user_id = (SELECT user_id FROM users WHERE username = %s))
+                """, (self.current_username,))
+                trainings = cursor.fetchall()
+                trainings_layout = QVBoxLayout()
+                for training in trainings:
+                    trainings_layout.addWidget(QLabel(f"Название: {training[0]}, Дата: {training[1]}"))
+                self.training_tab.setLayout(trainings_layout)
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке тренировок: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+    def load_awards(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT reward_id, reward_date, reward_description FROM rewards WHERE sportsman_id = (SELECT sportsman_id FROM sportsmen WHERE user_id = (SELECT user_id FROM users WHERE username = %s))", (self.current_username,))
+                awards = cursor.fetchall()
+                awards_layout = QVBoxLayout()
+                for award in awards:
+                    award_widget = QWidget()
+                    award_layout_inner = QVBoxLayout(award_widget)
+                    award_layout_inner.addWidget(QLabel(f"Название: {award[0]}"))
+                    award_layout_inner.addWidget(QLabel(f"Дата: {award[1]}"))
+                    award_layout_inner.addWidget(QLabel(f"Описание: {award[2]}"))
+                    award_widget.setLayout(award_layout_inner)
+                    awards_layout.addWidget(award_widget)
+                self.awards_tab.setLayout(awards_layout)
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке наград: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
+
+    def open_group(self):
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("""
+                    SELECT g.group_id, g.name
+                    FROM sportsman_group sg
+                    JOIN groups g ON sg.group_id = g.group_id
+                    WHERE sg.sportsman_id = (SELECT sportsman_id FROM sportsmen WHERE user_id = (SELECT user_id FROM users WHERE username = %s))
+                """, (self.current_username,))
+                group = cursor.fetchone()
+                if group:
+                    self.group_window = GroupMembersWindow(self, group[0])
+                    self.group_window.show()
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Не удалось загрузить информацию о группе")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных группы: {e}")
+            finally:
+                cursor.close()
+                connection.close()
 
     def open_profile_(self):
         self.hide()
         self.profile_window = ProfileWindow(self, username=self.current_username)
         self.profile_window.show()
 
-    def open_competition(self):
-        self.hide()
-        self.competition_window = CompetitionWindow(self)
-        self.competition_window.show()
-
-    def open_training(self):
-        self.hide()
-        self.training_window = TrainingWindow(self)  
-        self.training_window.show()
-
     def open_report(self):
         pass
 
     def close_application(self):
         self.close()
+        
+
+
+
 
 
 
@@ -423,6 +518,7 @@ class LoginWindow(QWidget):
         self.setWindowTitle("Login Window")
         self.setGeometry(530, 270, 450, 350)
 
+        # UI элементы
         self.username_label = QLabel("Логин:")
         self.password_label = QLabel("Пароль:")
         self.username_input = QLineEdit()
@@ -430,29 +526,36 @@ class LoginWindow(QWidget):
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.login_button = QPushButton("Вход")
         self.exit_button = QPushButton("Выход")
+
+        # Основной макет
         main_layout = QVBoxLayout()
+
+        # Сетка для полей ввода
         grid_layout = QGridLayout()
         grid_layout.addWidget(self.username_label, 0, 0)
         grid_layout.addWidget(self.username_input, 0, 1)
         grid_layout.addWidget(self.password_label, 1, 0)
         grid_layout.addWidget(self.password_input, 1, 1)
-
         main_layout.addLayout(grid_layout)
 
+        # Кнопки
         main_layout.addWidget(self.login_button)
         bottom_layout = QHBoxLayout()
         bottom_layout.addStretch()
         bottom_layout.addWidget(self.exit_button)
-
         main_layout.addLayout(bottom_layout)
 
         self.setLayout(main_layout)
+
+        # Подключение событий
         self.login_button.clicked.connect(self.check_user_credentials)
         self.exit_button.clicked.connect(self.close)
 
+        # Подключение к базе данных
         self.db = get_database_connection()
 
     def check_user_credentials(self):
+        """Проверяет учетные данные пользователя в базе данных."""
         username = self.username_input.text().strip()
         password = self.password_input.text().strip()
 
@@ -469,8 +572,7 @@ class LoginWindow(QWidget):
 
             if result:
                 stored_password, role = result
-
-                if stored_password == password.strip():
+                if stored_password == password:
                     QMessageBox.information(self, "Успех", "Вы успешно вошли!")
                     self.open_role_window(role, username)
                 else:
@@ -481,19 +583,19 @@ class LoginWindow(QWidget):
             QMessageBox.critical(self, "Ошибка", f"Ошибка при подключении к базе данных: {e}")
 
     def open_role_window(self, role, username):
+        """Открывает окно в зависимости от роли пользователя."""
         self.close()
         if role == "admin":
             self.admin_window = AdminWindow(username)
             self.admin_window.show()
         elif role == "sportsman":
-            self.athlete_window = AthleteWindow(username)
+            self.athlete_window = SportsmenWindow(self)
             self.athlete_window.show()
         elif role == "trainer":
-            self.coach_window = CoachWindow(username)
+            self.coach_window = TrainerWindow(self)
             self.coach_window.show()
         else:
             QMessageBox.warning(self, "Ошибка", "Неизвестная роль пользователя!")
-
 
 def main():
     app = QApplication(sys.argv)

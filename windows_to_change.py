@@ -213,17 +213,17 @@ class CreateRewardWindow(QWidget):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle("Создание Награды")
-        self.setGeometry(530, 270, 450, 350)
+        self.setGeometry(530, 270, 450, 250)
 
         # Элементы формы
-        self.sportsman_label = QLabel("Спортсмен:")
-        self.competition_label = QLabel("Соревнование:")
+        self.sportsman_id_label = QLabel("ID Спортсмена:")
+        self.competition_id_label = QLabel("ID Соревнования:")
         self.reward_date_label = QLabel("Дата награды (ДД.ММ.ГГГГ):")
         self.reward_description_label = QLabel("Описание награды:")
 
         # Поля ввода
-        self.sportsman_input = QComboBox()  # Предполагается, что список спортсменов будет загружен в этот выпадающий список
-        self.competition_input = QComboBox()  # То же самое для соревнований
+        self.sportsman_id_input = QLineEdit()  # Ввод ID спортсмена
+        self.competition_id_input = QLineEdit()  # Ввод ID соревнования
         self.reward_date_input = QLineEdit()  # Ввод даты награды
         self.reward_description_input = QLineEdit()  # Описание награды
 
@@ -239,10 +239,10 @@ class CreateRewardWindow(QWidget):
         layout = QVBoxLayout()
 
         grid_layout = QGridLayout()
-        grid_layout.addWidget(self.sportsman_label, 0, 0)
-        grid_layout.addWidget(self.sportsman_input, 0, 1)
-        grid_layout.addWidget(self.competition_label, 1, 0)
-        grid_layout.addWidget(self.competition_input, 1, 1)
+        grid_layout.addWidget(self.sportsman_id_label, 0, 0)
+        grid_layout.addWidget(self.sportsman_id_input, 0, 1)
+        grid_layout.addWidget(self.competition_id_label, 1, 0)
+        grid_layout.addWidget(self.competition_id_input, 1, 1)
         grid_layout.addWidget(self.reward_date_label, 2, 0)
         grid_layout.addWidget(self.reward_date_input, 2, 1)
         grid_layout.addWidget(self.reward_description_label, 3, 0)
@@ -250,73 +250,18 @@ class CreateRewardWindow(QWidget):
 
         layout.addLayout(grid_layout)
         layout.addWidget(self.submit_button)
-        layout.addWidget(self.back_button)  # Добавляем кнопку "Назад"
+        layout.addWidget(self.back_button)
 
         self.setLayout(layout)
 
-        # Загрузить спортсменов и соревнования
-        self.load_sportsmen()
-        self.load_competitions()
-
-    def load_sportsmen(self):
-        """Загружает список спортсменов в выпадающий список."""
-        db = get_database_connection()
-        if not db:
-            return
-
-        cursor = db.cursor()
-        cursor.execute("SELECT user_id, username FROM users WHERE role = 'Sportsman'")
-
-        sportsmen = cursor.fetchall()
-        for sportsman in sportsmen:
-            self.sportsman_input.addItem(sportsman[1], sportsman[0])  # Добавляем имя спортсмена и его ID
-
-        cursor.close()
-        db.close()
-
-    def load_competitions(self):
-        """Загружает список соревнований в выпадающий список."""
-        db = get_database_connection()
-        if not db:
-            return
-
-        cursor = db.cursor()
-        cursor.execute("SELECT competition_id, name FROM competitions")
-
-        competitions = cursor.fetchall()
-        for competition in competitions:
-            self.competition_input.addItem(competition[1], competition[0])  # Добавляем название соревнования и его ID
-
-        cursor.close()
-        db.close()
-
     def submit_form(self):
-        sportsman_id = self.sportsman_input.currentData()  # Получаем ID выбранного спортсмена
-        competition_id = self.competition_input.currentData()  # Получаем ID выбранного соревнования
+        sportsman_id = self.sportsman_id_input.text().strip()  # Получаем ID спортсмена
+        competition_id = self.competition_id_input.text().strip()  # Получаем ID соревнования
         reward_date = self.reward_date_input.text().strip()
         reward_description = self.reward_description_input.text().strip()
 
         if not all([sportsman_id, competition_id, reward_date, reward_description]):
             QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля.")
-            return
-
-        # Проверим, существует ли спортсмен в таблице sportsmen
-        db = get_database_connection()  # Здесь мы вызываем глобальную функцию
-        cursor = db.cursor()
-
-        cursor.execute("SELECT 1 FROM sportsmen WHERE sportsman_id = %s", (sportsman_id,))
-        if cursor.fetchone() is None:
-            QMessageBox.warning(self, "Ошибка", "Указанный спортсмен не найден в базе данных.")
-            cursor.close()
-            db.close()
-            return
-
-        # Проверим, существует ли соревнование в таблице competitions
-        cursor.execute("SELECT 1 FROM competitions WHERE competition_id = %s", (competition_id,))
-        if cursor.fetchone() is None:
-            QMessageBox.warning(self, "Ошибка", "Указанное соревнование не найдено в базе данных.")
-            cursor.close()
-            db.close()
             return
 
         # Преобразуем дату в нужный формат (ДД.ММ.ГГГГ -> ГГГГ-ММ-ДД)
@@ -326,7 +271,21 @@ class CreateRewardWindow(QWidget):
             QMessageBox.warning(self, "Ошибка", "Неверный формат даты. Используйте формат ДД.ММ.ГГГГ.")
             return
 
+        db = get_database_connection()
+        cursor = db.cursor()
         try:
+            # Проверим, существует ли спортсмен в таблице sportsmen
+            cursor.execute("SELECT 1 FROM sportsmen WHERE sportsman_id = %s", (sportsman_id,))
+            if cursor.fetchone() is None:
+                QMessageBox.warning(self, "Ошибка", "Указанный спортсмен не найден в базе данных.")
+                return
+
+            # Проверим, существует ли соревнование в таблице competitions
+            cursor.execute("SELECT 1 FROM competitions WHERE competition_id = %s", (competition_id,))
+            if cursor.fetchone() is None:
+                QMessageBox.warning(self, "Ошибка", "Указанное соревнование не найдено в базе данных.")
+                return
+
             # Вставка награды
             insert_reward_query = """
             INSERT INTO rewards (sportsman_id, competition_id, reward_date, reward_description)
