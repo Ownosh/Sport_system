@@ -1,7 +1,7 @@
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, 
-    QHBoxLayout, QGridLayout, QMessageBox, QFrame
+    QHBoxLayout, QGridLayout,QTabWidget, QMessageBox, QFrame
 )
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
@@ -121,8 +121,6 @@ class AdminWindow(QWidget):
         profile_widget = ProfileWindow(username=self.current_username)
         self.workspace.layout().addWidget(profile_widget)
 
-        
-        
 
 class AthleteWindow(QWidget):
     def __init__(self, username):
@@ -390,127 +388,107 @@ class AthleteWindow(QWidget):
         self.close()
         
 
-
-
-
-
-
 class CoachWindow(QWidget):
     def __init__(self, username):
         super().__init__()
         self.setWindowTitle("Coach Window")
         self.setGeometry(350, 150, 800, 600)
 
-        # Главный лэйаут
+        self.current_username = username
+        self.setup_ui()
+
+    def setup_ui(self):
         main_layout = QVBoxLayout()
-        self.current_username1 = username
-        print(self.current_username1)
 
-        top_layout = QHBoxLayout()
-        self.profile_button = QPushButton("Профиль")
-        self.competition_button = QPushButton("Журнал соревнований")
-        self.training_button = QPushButton("Журнал тренировок")
-        self.award_button = QPushButton("Журнал наград")
-        self.profile_button.clicked.connect(self.open_profile_)
-
-        top_layout.addWidget(self.profile_button)
-        top_layout.addWidget(self.competition_button)
-        top_layout.addWidget(self.training_button)
-        top_layout.addWidget(self.award_button)
-
-        # Центральная часть с вкладками
-        self.tabs = QTabWidget()
-        self.profile_tab = QWidget()
-        self.competition_tab = QWidget()
-        self.training_tab = QWidget()
-        self.award_tab = QWidget()
-        
-        self.tabs.addTab(self.profile_tab, "Профиль")
-        self.tabs.addTab(self.competition_tab, "Журнал соревнований")
-        self.tabs.addTab(self.training_tab, "Журнал тренировок")
-        self.tabs.addTab(self.award_tab, "Журнал наград")
-
-
-        side_nav_layout = QVBoxLayout()
-        
-        self.groups_button = QPushButton("Группы")
-        self.sportsmen_button = QPushButton("Спортсмены")
-        self.trainers_button = QPushButton("Тренера")
-        self.reports_button = QPushButton("Отчеты")
-        self.exit_button = QPushButton("Выход")
-        
-        side_nav_layout.addWidget(self.groups_button)
-        side_nav_layout.addWidget(self.sportsmen_button)
-        side_nav_layout.addWidget(self.trainers_button)
-        side_nav_layout.addWidget(self.reports_button)
-        side_nav_layout.addStretch()
-        side_nav_layout.addWidget(self.exit_button)
-
-        # Создаем центральную панель
+        # Рабочая область
         self.workspace = QFrame()
         self.workspace.setFrameShape(QFrame.Shape.StyledPanel)
-        
+        self.workspace.setLayout(QVBoxLayout())
+
+        # Верхняя навигация
+        top_nav_layout = QHBoxLayout()
+        self.profile_button = self.create_button("Профиль", self.open_profile_)
+        self.competition_button = self.create_button("Журнал соревнований", self.open_competition_)
+        self.training_button = self.create_button("Журнал тренировок", self.open_training_)
+        self.award_button = self.create_button("Журнал наград", self.open_award_)
+
+        top_nav_layout.addWidget(self.profile_button)
+        top_nav_layout.addWidget(self.competition_button)
+        top_nav_layout.addWidget(self.training_button)
+        top_nav_layout.addWidget(self.award_button)
+
+        # Боковая навигация
+        side_nav_layout = QVBoxLayout()
+        self.nav_buttons = {
+            "Группы": self.open_group_,
+            "Спортсмены": self.open_sportsmen_,
+            "Тренера": self.open_trainer_,
+            "Отчеты": self.display_report
+        }
+
+        for label, handler in self.nav_buttons.items():
+            side_nav_layout.addWidget(self.create_button(label, handler))
+
+        side_nav_layout.addStretch()  
+        self.exit_button = self.create_button("Выход", self.close)
+        side_nav_layout.addWidget(self.exit_button)
+
+        # Организация главного макета
         content_layout = QHBoxLayout()
         content_layout.addWidget(self.workspace)
         content_layout.addLayout(side_nav_layout)
 
-        main_layout.addLayout(top_layout)
+        main_layout.addLayout(top_nav_layout)
         main_layout.addLayout(content_layout)
-
         self.setLayout(main_layout)
 
-        self.trainers_button.clicked.connect(self.open_trainer_)
-        self.sportsmen_button.clicked.connect(self.open_sportsmen_)
-        self.groups_button.clicked.connect(self.open_group_)
-        self.competition_button.clicked.connect(self.open_competition)
-        self.training_button.clicked.connect(self.open_training)
-        self.award_button.clicked.connect(self.open_award)
+    def create_button(self, text, handler):
+        button = QPushButton(text)
+        button.clicked.connect(handler)
+        return button
 
-        self.exit_button.clicked.connect(self.exit_application)
-        
-        
-    def open_profile_(self):
+    def open_window(self, window_class, *args, **kwargs):
         self.hide()
-        self.profile_window = ProfileWindow(self, username=self.current_username1)
-        self.profile_window.show()
-        
-    def open_sportsmen_(self):
-        self.hide()
-        self.profile_window = SportsmenWindow(self)
-        self.profile_window.show()
-        
-    def open_trainer_(self):
-        self.hide()
-        self.profile_window = TrainerWindow(self)
-        self.profile_window.show()
-        
+        window = window_class(self, *args, **kwargs)
+        window.show()
+        return window
+
+    def display_report(self):
+        self.clear_workspace()
+        report_window = ReportWindow(self.workspace)
+        self.workspace.layout().addWidget(report_window)
+
+    def clear_workspace(self):
+        layout = self.workspace.layout()
+        if layout is not None:
+            while layout.count():
+                child = layout.takeAt(0)
+                if widget := child.widget():
+                    widget.setParent(None)
+
     def open_group_(self):
-        self.hide()
-        self.profile_window = GroupWindowForTrainers(self)
-        self.profile_window.show()
-        
-    def open_profile_window(self):
-        self.hide()
-        self.profile_window = ProfileWindow(self)
-        self.profile_window.show()
+        self.open_window(GroupWindowForTrainers)
 
-    def open_competition(self):
-        self.hide()
-        self.competition__window = CompetitionWindow(self)
-        self.competition__window.show()
+    def open_sportsmen_(self):
+        self.open_window(SportsmenWindow)
 
-    def open_training(self):
-        self.hide()
-        self.training__window = TrainingWindow(self)
-        self.training__window.show()
+    def open_trainer_(self):
+        self.open_window(TrainerWindow)
 
-    def open_award(self):
-        self.hide()
-        self.award__window = AwardWindow(self)
-        self.award__window.show()
+    def open_award_(self):
+        self.open_window(AwardWindow)
 
-    def exit_application(self):
-        self.close()  
+    def open_training_(self):
+        self.open_window(TrainingWindow)
+
+    def open_competition_(self):
+        self.open_window(CompetitionWindow)
+
+    def open_profile_(self):
+        self.clear_workspace()
+        profile_widget = ProfileWindow(username=self.current_username)
+        self.workspace.layout().addWidget(profile_widget)
+
 
 class LoginWindow(QWidget):
     def __init__(self):
@@ -589,10 +567,10 @@ class LoginWindow(QWidget):
             self.admin_window = AdminWindow(username)
             self.admin_window.show()
         elif role == "sportsman":
-            self.athlete_window = SportsmenWindow(self)
+            self.athlete_window = SportsmenWindow(username)
             self.athlete_window.show()
         elif role == "trainer":
-            self.coach_window = TrainerWindow(self)
+            self.coach_window = CoachWindow(username)
             self.coach_window.show()
         else:
             QMessageBox.warning(self, "Ошибка", "Неизвестная роль пользователя!")

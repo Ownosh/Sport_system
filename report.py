@@ -1,8 +1,9 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QTextEdit, QHBoxLayout
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QTextEdit
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 import mysql.connector
 import matplotlib.pyplot as plt
+
 
 class ReportWindow(QWidget):
     def __init__(self, parent):
@@ -15,15 +16,20 @@ class ReportWindow(QWidget):
         # Контейнер для фото
         self.chart_label = QLabel()
         self.chart_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.chart_label.setFixedSize(360, 300)  # Устанавливаем размер фото
-        self.chart_label.setStyleSheet("border: 1px solid gray;")  # Визуализация границ
+        self.chart_label.setFixedSize(400, 300)  # Устанавливаем размер фото
+        self.chart_label.setStyleSheet("border: 1px solid #d0d0d0; background-color: #505050;")  # Визуализация границ
         main_layout.addWidget(self.chart_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Контейнер для текста
         self.report_text_area = QTextEdit()
         self.report_text_area.setReadOnly(True)
         self.report_text_area.setFixedWidth(400)  # Фиксируем ширину текста
-        self.report_text_area.setStyleSheet("border: 1px solid gray;")
+        self.report_text_area.setStyleSheet("""
+            font-size: 14px;
+            padding: 2px;
+            background-color: #505050;  /* Светло-серый фон */
+            border: 1px solid #d0d0d0;  /* Легкая граница */
+        """)
         main_layout.addWidget(self.report_text_area, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.setLayout(main_layout)
@@ -93,14 +99,20 @@ class ReportWindow(QWidget):
         )
         self.report_text_area.setText(report_text)
 
-        labels = ['Постоянники/пришедшие', 'Давно не было/ушли', 'Участвовали в соревнованиях', 'Пропустили соревнования', 'Присутствовали на тренировках', 'Пропустили тренировки']
-        values = [active_athletes, inactive_athletes, participated_competitions, absent_competitions, attended_trainings, missed_trainings]
+        labels = [
+            'Постоянники/пришедшие', 'Давно не было/ушли', 'Участвовали в соревнованиях',
+            'Пропустили соревнования', 'Присутствовали на тренировках', 'Пропустили тренировки'
+        ]
+        values = [
+            active_athletes, inactive_athletes, participated_competitions,
+            absent_competitions, attended_trainings, missed_trainings
+        ]
 
         # Создание диаграммы с высоким разрешением
         plt.figure(figsize=(5, 4), dpi=100)  # DPI увеличен для улучшения качества
         plt.barh(labels, values, color='grey')
         plt.xlabel('Количество')
-        plt.title('Отчеты по спортсменам')
+        plt.title('Отчет по спортсменам')
         plt.tight_layout()
 
         plt.savefig('report_chart.png', dpi=200)  # Сохраняем в высоком разрешении
@@ -108,9 +120,12 @@ class ReportWindow(QWidget):
         # Загружаем диаграмму в QLabel
         pixmap = QPixmap('report_chart.png')
         self.chart_label.setPixmap(
-            pixmap.scaled(self.chart_label.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            pixmap.scaled(
+                self.chart_label.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
         )
 
         cursor.close()
         connection.close()
-

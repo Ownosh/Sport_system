@@ -6,7 +6,6 @@ from windows_to_change import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 
-from PyQt6.QtWidgets import QSizePolicy
 
 
 class BaseWindow(QWidget):
@@ -14,7 +13,7 @@ class BaseWindow(QWidget):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle(title)
-        self.setGeometry(350, 150, 800, 600)
+        self.setGeometry(350, 150, 800, 400)
 
         main_layout = QVBoxLayout()
 
@@ -28,25 +27,49 @@ class BaseWindow(QWidget):
         for i in range(len(column_labels)):
             self.table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
 
+        # Кнопки с текстом
         self.add_button = QPushButton(button_labels['add'])
         self.edit_button = QPushButton(button_labels['edit'])
         self.delete_button = QPushButton(button_labels['delete'])
 
+        # Стилизация таблицы
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #505050; /* Цвет фона таблицы */
+                font-size: 14px;           /* Размер шрифта */
+                border: 1px solid #d0d0d0; /* Граница таблицы */
+            }
+            QTableWidget::item {
+                font-size: 14px; 
+                padding: 5px;
+            }
+            QHeaderView::section {
+                font-size: 14px; 
+                background-color: #505050; /* Цвет фона для заголовков */
+                padding: 5px;
+            }
+        """)
+
+
+        # Макет кнопок
         buttons_layout = QVBoxLayout()
         buttons_layout.addWidget(self.add_button)
         buttons_layout.addWidget(self.edit_button)
         buttons_layout.addWidget(self.delete_button)
         buttons_layout.addStretch()
 
+        # Макет верхней части
         top_layout = QHBoxLayout()
         top_layout.addWidget(self.table_label)
         top_layout.addStretch()
         top_layout.addWidget(self.back_button)
 
+        # Макет контента
         content_layout = QHBoxLayout()
         content_layout.addWidget(self.table)
         content_layout.addLayout(buttons_layout)
 
+        # Основной макет
         main_layout.addLayout(top_layout)
         main_layout.addLayout(content_layout)
 
@@ -94,6 +117,24 @@ class BaseWindow2(QWidget):
         for i in range(len(column_labels)):
             self.table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
 
+        # Стилизация таблицы
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #505050; /* Цвет фона таблицы */
+                font-size: 14px;           /* Размер шрифта */
+                border: 1px solid #d0d0d0; /* Граница таблицы */
+            }
+            QTableWidget::item {
+                font-size: 14px; 
+                padding: 5px;
+            }
+            QHeaderView::section {
+                font-size: 14px; 
+                background-color: #505050; /* Цвет фона для заголовков */
+                padding: 5px;
+            }
+        """)
+
         top_layout = QHBoxLayout()
         top_layout.addWidget(self.table_label)
         top_layout.addStretch()
@@ -126,6 +167,7 @@ class BaseWindow2(QWidget):
         finally:
             cursor.close()
             db.close()
+
 
 
 class AwardWindow(BaseWindow):

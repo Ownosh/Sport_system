@@ -2,6 +2,7 @@ import mysql.connector
 from PyQt6.QtWidgets import QWidget,QDialog,QFileDialog,QTextEdit, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PyQt6.QtCore import Qt
 import os
+from datetime import datetime
 from PyQt6.QtCore import QDateTime,QDate
 from PyQt6.QtGui import QPixmap
 
@@ -23,7 +24,7 @@ class CreateUserWindow(QWidget):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle("Создание пользователя")
-        self.setGeometry(530, 270, 600, 400)  # Увеличиваем размеры окна
+        self.setGeometry(350, 150, 800, 400)
 
         # Элементы формы
         self.username_label = QLabel("Логин:")
@@ -48,7 +49,7 @@ class CreateUserWindow(QWidget):
         self.dob_input = QLineEdit()
         self.city_input = QLineEdit()
         self.role_input = QComboBox()
-        self.role_input.addItems(["Sportsman", "Trainer"])
+        self.role_input.addItems(["Sportsman", "Trainer"])  # Исключаем "Admin"
         self.sport_type_input = QLineEdit()
         self.phone_input = QLineEdit()
         self.email_input = QLineEdit()
@@ -62,12 +63,10 @@ class CreateUserWindow(QWidget):
         self.back_button.clicked.connect(self.go_back)
 
         # Размещение элементов на форме
-        layout = QHBoxLayout()  # Используем горизонтальный макет
-
-        # Сетка для формы слева
+        layout = QHBoxLayout()
         form_layout = QVBoxLayout()
-
         grid_layout = QGridLayout()
+
         grid_layout.addWidget(self.username_label, 0, 0)
         grid_layout.addWidget(self.username_input, 0, 1)
         grid_layout.addWidget(self.password_label, 1, 0)
@@ -93,13 +92,12 @@ class CreateUserWindow(QWidget):
 
         form_layout.addLayout(grid_layout)
         form_layout.addWidget(self.submit_button)
-        form_layout.addWidget(self.back_button)  # Добавляем кнопку "Назад"
+        form_layout.addWidget(self.back_button)
 
-        # Панель для фото справа
         photo_layout = QVBoxLayout()
         self.photo_label = QLabel()
-        self.photo_label.setFixedSize(150, 150)
-        self.photo_label.setStyleSheet("border: 1px solid black;")
+        self.photo_label.setFixedSize(400, 300)
+        self.photo_label.setStyleSheet("")
 
         self.add_photo_button = QPushButton("Добавить фото")
         self.add_photo_button.clicked.connect(self.add_photo)
@@ -114,12 +112,11 @@ class CreateUserWindow(QWidget):
         self.setLayout(layout)
 
     def add_photo(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Выберите изображение", "", "Изображения (*.png *.xpm *.jpg)")
+        file_name, _ = QFileDialog.getOpenFileName(self, "Выберите изображение", "", "Изображения (*.png *.jpg *.jpeg)")
         if file_name:
             pixmap = QPixmap(file_name)
             self.photo_label.setPixmap(pixmap.scaled(self.photo_label.size(), Qt.AspectRatioMode.KeepAspectRatio))
-            self.photo_file = file_name  # Сохраняем имя файла для последующего использования
- # Сохраняем имя файла для последующего использования
+            self.photo_file = file_name
 
     def submit_form(self):
         username = self.username_input.text().strip()
@@ -138,6 +135,13 @@ class CreateUserWindow(QWidget):
             QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля.")
             return
 
+        try:
+            # Проверка формата даты
+            datetime.strptime(dob, "%d.%m.%Y")
+        except ValueError:
+            QMessageBox.warning(self, "Ошибка", "Некорректный формат даты (используйте ДД.ММ.ГГГГ).")
+            return
+
         db = get_database_connection()
         if not db:
             return
@@ -145,75 +149,55 @@ class CreateUserWindow(QWidget):
         cursor = db.cursor()
 
         try:
-            # Вставка пользователя
             insert_user_query = """
             INSERT INTO users (username, password, email, phone_number, role)
             VALUES (%s, %s, %s, %s, %s)
             """
             cursor.execute(insert_user_query, (username, password, email, phone, role))
-            user_id = cursor.lastrowid  # Получаем ID только что добавленного пользователя
-
-            # Вывод отладочной информации
-            print(f"Добавлен пользователь с ID: {user_id}")
+            user_id = cursor.lastrowid
 
             if role == "Sportsman":
-                insert_athlete_query = """
+                insert_sportsman_query = """
                 INSERT INTO sportsmen (user_id, first_name, last_name, patronymic, birthdate, city, typesport)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
-                print(f"Запрос для спортсмена: {insert_athlete_query}, параметры: {user_id}, {first_name}, {last_name}, {middle_name}, {dob}, {city}, {sport_type}")
-                cursor.execute(insert_athlete_query, (user_id, first_name, last_name, middle_name, dob, city, sport_type))
-
-                # Добавление фото спортсмена
-                if hasattr(self, 'photo_file'):
-                    with open(self.photo_file, "rb") as file:
-                        binary_data = file.read()
-                    cursor.execute("UPDATE sportsmen SET photo = %s WHERE user_id = %s", (binary_data, user_id))
-
+                cursor.execute(insert_sportsman_query, (user_id, first_name, last_name, middle_name, dob, city, sport_type))
             elif role == "Trainer":
                 insert_trainer_query = """
                 INSERT INTO trainers (user_id, first_name, last_name, patronymic, birthdate, city, specialty)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
-                print(f"Запрос для тренера: {insert_trainer_query}, параметры: {user_id}, {first_name}, {last_name}, {middle_name}, {dob}, {city}, {sport_type}")
                 cursor.execute(insert_trainer_query, (user_id, first_name, last_name, middle_name, dob, city, sport_type))
 
-                # Добавление фото тренера
-                if hasattr(self, 'photo_file'):
-                    with open(self.photo_file, "rb") as file:
-                        binary_data = file.read()
-                    cursor.execute("UPDATE trainers SET photo = %s WHERE user_id = %s", (binary_data, user_id))
+            if hasattr(self, 'photo_file'):
+                with open(self.photo_file, "rb") as file:
+                    photo_data = file.read()
+                cursor.execute("UPDATE users SET photo = %s WHERE user_id = %s", (photo_data, user_id))
 
             db.commit()
-
-            # Передача параметров для загрузки данных
-            query = "SELECT user_id, username, password, email, phone_number, role FROM users"
-            columns = ["user_id", "username", "password", "email", "phone_number", "role"]
-            self.parent_window.load_data(query, columns)
-
             QMessageBox.information(self, "Успех", "Пользователь успешно создан.")
             self.close()
+            self.parent_window.load_data("SELECT user_id, username, password, role, phone_number, email FROM users", ["user_id", "username", "password", "role", "phone_number", "email"])
             self.parent_window.show()
 
-        except mysql.connector.Error as e:
+        except Exception as e:
             db.rollback()
-            print(f"Ошибка при выполнении запроса: {e}")
-            QMessageBox.critical(self, "Ошибка", f"Ошибка при добавлении пользователя в базу данных: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Ошибка добавления пользователя: {e}")
         finally:
             cursor.close()
             db.close()
 
     def go_back(self):
-        """Обработчик для кнопки 'Назад'."""
-        self.close()  # Закрыть текущее окно
-        self.parent_window.show()  # Показать родительское окно
+        self.close()
+        self.parent_window.show()
+
 
 class CreateRewardWindow(QWidget):
     def __init__(self, parent_window):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle("Создание Награды")
-        self.setGeometry(530, 270, 450, 250)
+        self.setGeometry(350, 150, 800, 400)
 
         # Элементы формы
         self.sportsman_id_label = QLabel("ID Спортсмена:")
@@ -321,7 +305,7 @@ class CreateTrainingWindow(QWidget):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle("Создание тренировки")
-        self.setGeometry(530, 270, 450, 350)
+        self.setGeometry(350, 150, 800, 400)
         
         self.setup_ui()
         self.load_data_from_db()
@@ -913,7 +897,7 @@ class EditTrainingWindow(QDialog):
         self.parent_window=parent_window
         self.training_id = training_id
         self.setWindowTitle("Редактирование тренировки")
-        self.setGeometry(530, 270, 450, 350)
+        self.setGeometry(350, 150, 800, 400)
         
         self.setup_ui()
         self.load_data()
@@ -1261,7 +1245,7 @@ class EditUserWindow(QWidget):
         self.parent_window = parent_window
         self.user_id = user_id
         self.setWindowTitle("Изменение пользователя")
-        self.setGeometry(530, 270, 600, 400)  # Увеличиваем размеры окна
+        self.setGeometry(350, 150, 800, 400)
 
         # Элементы формы
         self.username_label = QLabel("Логин:")
@@ -1392,7 +1376,7 @@ class AwardDetailWindow(QWidget):
         self.parent_window = parent_window
         self.award_id = award_id
         self.setWindowTitle("Изменение награды")
-        self.setGeometry(530, 270, 600, 400)
+        self.setGeometry(350, 150, 800, 400)
 
         # Элементы формы
         self.award_name_label = QLabel("Название награды:")
@@ -1489,7 +1473,7 @@ class SelectAwardWindow(QWidget):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle("Выберите награду для изменения")
-        self.setGeometry(530, 270, 450, 150)
+        self.setGeometry(350, 150, 800, 400)
 
         # Элементы формы
         self.award_name_label = QLabel("ID награды:")
