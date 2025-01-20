@@ -5,19 +5,19 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
-from auxiliary_windows import (
+from main_buttons import (
     AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, 
     ProfileWindow, TrainerWindow, GroupWindowForTrainers, GroupMembersWindow
 )
 from group import GroupWindow
-from spwin import SportsmenWindow
+from sportsman_button import SportsmenWindow
 from report import ReportWindow
 from windows_to_change import get_database_connection
 
 class AdminWindow(QWidget):
     def __init__(self, username):
         super().__init__()
-        self.setWindowTitle("Admin Window")
+        self.setWindowTitle("Окно Администратора")
         self.setGeometry(350, 150, 800, 600)
 
         self.current_username = username
@@ -125,7 +125,7 @@ class AdminWindow(QWidget):
 class AthleteWindow(QWidget):
     def __init__(self, username):
         super().__init__()
-        self.setWindowTitle("Athlete Window")
+        self.setWindowTitle("Главное окно")
         self.setGeometry(350, 150, 800, 600)
 
         top_nav_layout = QHBoxLayout()
@@ -391,7 +391,7 @@ class AthleteWindow(QWidget):
 class CoachWindow(QWidget):
     def __init__(self, username):
         super().__init__()
-        self.setWindowTitle("Coach Window")
+        self.setWindowTitle("Главное окно")
         self.setGeometry(350, 150, 800, 600)
 
         self.current_username = username
@@ -493,8 +493,8 @@ class CoachWindow(QWidget):
 class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Login Window")
-        self.setGeometry(530, 270, 450, 350)
+        self.setWindowTitle("Авторизация")
+        self.setGeometry(530, 270, 350, 250)
 
         # UI элементы
         self.username_label = QLabel("Логин:")

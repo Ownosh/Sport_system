@@ -13,7 +13,7 @@ class BaseWindow(QWidget):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle(title)
-        self.setGeometry(350, 150, 800, 400)
+        self.setGeometry(350, 150, 800, 600)
 
         main_layout = QVBoxLayout()
 
@@ -36,16 +36,16 @@ class BaseWindow(QWidget):
         self.table.setStyleSheet("""
             QTableWidget {
                 background-color: #505050; /* Цвет фона таблицы */
-                font-size: 14px;           /* Размер шрифта */
+                font-size: 12px;           /* Размер шрифта */
                 border: 1px solid #d0d0d0; /* Граница таблицы */
             }
             QTableWidget::item {
-                font-size: 14px; 
+                font-size: 12px; 
                 padding: 5px;
             }
             QHeaderView::section {
-                font-size: 14px; 
-                background-color: #505050; /* Цвет фона для заголовков */
+                font-size: 12px; 
+                background-color: #707070;
                 padding: 5px;
             }
         """)
@@ -121,16 +121,16 @@ class BaseWindow2(QWidget):
         self.table.setStyleSheet("""
             QTableWidget {
                 background-color: #505050; /* Цвет фона таблицы */
-                font-size: 14px;           /* Размер шрифта */
+                font-size: 12px;           /* Размер шрифта */
                 border: 1px solid #d0d0d0; /* Граница таблицы */
             }
             QTableWidget::item {
-                font-size: 14px; 
+                font-size: 12px; 
                 padding: 5px;
             }
             QHeaderView::section {
-                font-size: 14px; 
-                background-color: #505050; /* Цвет фона для заголовков */
+                font-size: 12px; 
+                background-color: #707070; /* Цвет фона для заголовков */
                 padding: 5px;
             }
         """)
@@ -250,18 +250,24 @@ class UserWindow(BaseWindow):
 class TrainingWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
-        column_labels = ["training_id", "group_id", "date", "location"]
+        column_labels = ["ID Тренировки", "Название тренировки", "Название группы", "Дата", "Место проведения"]  # Изменили название столбца
         super().__init__(parent_window, "Журнал тренировок", "Тренировки", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_training)
         self.edit_button.clicked.connect(self.edit_training)
         self.delete_button.clicked.connect(self.delete_training)
-        self.load_data("SELECT training_id, group_id, date, location FROM trainings", 
-               ["training_id", "group_id", "date", "location"])
         
+        # Обновляем запрос для получения названия группы
+        self.load_data("""
+            SELECT t.training_id, t.name_training, g.name, t.date, t.location 
+            FROM trainings t
+            JOIN groups g ON t.group_id = g.group_id
+        """, ["training_id", "name_training", "name", "date", "location"])
+
     def add_training(self): 
         self.create_user_window = CreateTrainingWindow(self)
         self.create_user_window.show()
         self.hide()
+
         
     def edit_training(self):
         selected_row = self.table.currentRow()
@@ -281,7 +287,7 @@ class TrainingWindow(BaseWindow):
 class CompetitionWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
-        column_labels = ["competition_id", "name", "date", "location"]
+        column_labels = ["ID Соревнования", "Название", "Дата", "Место проведения"]
         super().__init__(parent_window, "Журнал соревнований", "Соревнования", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_competition)
         self.edit_button.clicked.connect(self.edit_competition)
@@ -312,11 +318,11 @@ class CompetitionWindow(BaseWindow):
 
 class TrainerWindow(BaseWindow2):
     def __init__(self, parent_window):
-        column_labels = ["trainer_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"]
+        column_labels = ["ID Тренера", "Имя", "Фамилия", "Отчество", "Дата Рождения", "Специализация"]
         super().__init__(parent_window, "Тренера", "Списпок тренеров", column_labels)
         
-        self.load_data("SELECT trainer_id, user_id, first_name, last_name, patronymic, birthdate, specialty FROM trainers", 
-                       ["trainer_id", "user_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"])
+        self.load_data("SELECT trainer_id, first_name, last_name, patronymic, birthdate, specialty FROM trainers", 
+                       ["trainer_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"])
         
         
 
@@ -355,7 +361,7 @@ class GroupMembersWindow(QDialog):
 
         self.table = QTableWidget()
         self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["ID", "Имя", "Фамилия"])
+        self.table.setHorizontalHeaderLabels(["ID Пользователя", "Имя", "Фамилия"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         layout.addWidget(self.table)
 
