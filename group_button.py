@@ -3,42 +3,104 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QMessageBox, QDialog, QLineEdit, QComboBox, QDialogButtonBox
 )
 import mysql.connector
-from windows_to_change import get_database_connection
+from change_buttons import get_database_connection
 
-class BaseWindow(QWidget):
-    def __init__(self, parent_window, title, table_label, column_labels):
+class GroupWindow(QWidget):
+    def __init__(self, parent_window):
         super().__init__()
         self.parent_window = parent_window
-        self.setWindowTitle(title)
-        self.setGeometry(350, 150, 600, 400)
+        self.setWindowTitle("Группы")
+        self.setGeometry(350, 150, 800, 600)
 
+        # Основной макет
         main_layout = QVBoxLayout()
 
+        # Верхняя панель с заголовком и кнопкой назад
+        self.table_label = QLabel("Список групп")
         self.back_button = QPushButton("Назад")
         self.back_button.clicked.connect(self.go_back)
-
-        self.table_label = QLabel(table_label)
-        self.table = QTableWidget()
-        self.table.setColumnCount(len(column_labels))
-        self.table.setHorizontalHeaderLabels(column_labels)
-        for i in range(len(column_labels)):
-            self.table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
 
         top_layout = QHBoxLayout()
         top_layout.addWidget(self.table_label)
         top_layout.addStretch()
         top_layout.addWidget(self.back_button)
 
+        # Таблица
+        self.table = QTableWidget()
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(["group_id", "name", "trainer_id"])
+        for i in range(3):
+            self.table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #505050; /* Цвет фона таблицы */
+                font-size: 12px;           /* Размер шрифта */
+                border: 1px solid #d0d0d0; /* Граница таблицы */
+            }
+            QTableWidget::item {
+                font-size: 12px; 
+                padding: 5px;
+            }
+            QHeaderView::section {
+                font-size: 12px; 
+                background-color: #707070;
+                padding: 5px;
+            }
+        """)
+
+
+        # Кнопки управления группами
+        self.create_group_button = QPushButton("Создать группу")
+        self.edit_group_button = QPushButton("Изменить группу")
+        self.delete_group_button = QPushButton("Удалить группу")
+
+        group_buttons_layout = QVBoxLayout()
+        group_buttons_layout.addWidget(self.create_group_button)
+        group_buttons_layout.addWidget(self.edit_group_button)
+        group_buttons_layout.addWidget(self.delete_group_button)
+        group_buttons_layout.addStretch()
+
+        # Кнопки управления участниками
+        self.add_people_button = QPushButton("Добавить людей в группу")
+        self.view_people_button = QPushButton("Просмотреть людей в группе")
+        self.delete_people_button = QPushButton("Удалить людей из группы")
+
+        people_buttons_layout = QHBoxLayout()
+        people_buttons_layout.addWidget(self.add_people_button)
+        people_buttons_layout.addWidget(self.view_people_button)
+        people_buttons_layout.addWidget(self.delete_people_button)
+
+        # Макет для основного контента
+        content_layout = QHBoxLayout()
+        content_layout.addWidget(self.table)
+        content_layout.addLayout(group_buttons_layout)
+
+        # Компоновка всех элементов
         main_layout.addLayout(top_layout)
-        main_layout.addWidget(self.table)
+        main_layout.addLayout(content_layout)
+        main_layout.addLayout(people_buttons_layout)
 
         self.setLayout(main_layout)
+
+        # Подключение сигналов к методам
+        self.create_group_button.clicked.connect(self.open_create_group_dialog)
+        self.edit_group_button.clicked.connect(self.open_edit_group_dialog)
+        self.delete_group_button.clicked.connect(self.delete_group)
+        self.add_people_button.clicked.connect(self.open_add_people_dialog)
+        self.view_people_button.clicked.connect(self.open_view_people_dialog)
+        self.delete_people_button.clicked.connect(self.open_delete_people_dialog)
+
+        # Загрузка данных
+        self.load_data()
 
     def go_back(self):
         self.close()
         self.parent_window.show()
 
-    def load_data(self, query, columns):
+    def load_data(self):
+        query = "SELECT group_id, name, trainer_id FROM groups"
+        columns = ["group_id", "name", "trainer_id"]
         db = get_database_connection()
         if not db:
             return
@@ -57,52 +119,10 @@ class BaseWindow(QWidget):
             cursor.close()
             db.close()
 
-
-class GroupWindow(BaseWindow):
-    def __init__(self, parent_window):
-        column_labels = ["group_id", "name", "trainer_id"]
-        super().__init__(parent_window, "Группы", "Список групп", column_labels)
-
-        self.create_group_button = QPushButton("Создать группу")
-        self.edit_group_button = QPushButton("Изменить группу")
-        self.delete_group_button = QPushButton("Удалить группу")
-
-        self.add_people_button = QPushButton("Добавить людей в группу")
-        self.view_people_button = QPushButton("Просмотреть людей в группе")
-        self.delete_people_button = QPushButton("Удалить людей из группы")
-
-        group_buttons_layout = QVBoxLayout()
-        group_buttons_layout.addWidget(self.create_group_button)
-        group_buttons_layout.addWidget(self.edit_group_button)
-        group_buttons_layout.addWidget(self.delete_group_button)
-        group_buttons_layout.addStretch()
-
-        people_buttons_layout = QHBoxLayout()
-        people_buttons_layout.addWidget(self.add_people_button)
-        people_buttons_layout.addWidget(self.view_people_button)
-        people_buttons_layout.addWidget(self.delete_people_button)
-
-        main_layout = self.layout()
-        main_layout.addLayout(group_buttons_layout)
-        main_layout.addLayout(people_buttons_layout)
-
-        self.create_group_button.clicked.connect(self.open_create_group_dialog)
-        self.edit_group_button.clicked.connect(self.open_edit_group_dialog)
-        self.delete_group_button.clicked.connect(self.delete_group)
-        self.add_people_button.clicked.connect(self.open_add_people_dialog)
-        self.view_people_button.clicked.connect(self.open_view_people_dialog)
-        self.delete_people_button.clicked.connect(self.open_delete_people_dialog)
-
-        self.load_data("SELECT group_id, name, trainer_id FROM groups",
-                       ["group_id", "name", "trainer_id"])
-
     def open_create_group_dialog(self):
         dialog = CreateGroupDialog(self)
-        result = dialog.exec()
-
-        if result == QDialog.DialogCode.Accepted:
-            self.load_data("SELECT group_id, name, trainer_id FROM groups",
-                           ["group_id", "name", "trainer_id"])
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.load_data()
 
     def open_edit_group_dialog(self):
         selected_row = self.table.currentRow()
@@ -112,11 +132,8 @@ class GroupWindow(BaseWindow):
 
         group_id = self.table.item(selected_row, 0).text()
         dialog = EditGroupDialog(self, group_id)
-        result = dialog.exec()
-
-        if result == QDialog.DialogCode.Accepted:
-            self.load_data("SELECT group_id, name, trainer_id FROM groups",
-                           ["group_id", "name", "trainer_id"])
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.load_data()
 
     def delete_group(self):
         selected_row = self.table.currentRow()
@@ -133,8 +150,7 @@ class GroupWindow(BaseWindow):
                 cursor.execute("DELETE FROM groups WHERE group_id = %s", (group_id,))
                 connection.commit()
                 QMessageBox.information(self, "Успех", "Группа успешно удалена!")
-                self.load_data("SELECT group_id, name, trainer_id FROM groups",
-                               ["group_id", "name", "trainer_id"])
+                self.load_data()
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении группы: {e}")
                 connection.rollback()
@@ -173,10 +189,12 @@ class GroupWindow(BaseWindow):
         dialog.exec()
 
 
+
 class CreateGroupDialog(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
         self.setWindowTitle("Создать группу")
+        self.setGeometry(400, 200, 400, 400)
 
         self.layout = QVBoxLayout()
 
@@ -185,10 +203,11 @@ class CreateGroupDialog(QDialog):
         self.layout.addWidget(self.name_label)
         self.layout.addWidget(self.name_input)
 
-        self.desc_label = QLabel("Описание группы:")
-        self.desc_input = QLineEdit()
-        self.layout.addWidget(self.desc_label)
-        self.layout.addWidget(self.desc_input)
+        self.trainer_label = QLabel("Выберите тренера:")
+        self.trainer_combobox = QComboBox()
+        self.load_trainers()  # Загрузка тренеров в выпадающий список
+        self.layout.addWidget(self.trainer_label)
+        self.layout.addWidget(self.trainer_combobox)
 
         self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self.button_box.accepted.connect(self.create_group)
@@ -197,12 +216,31 @@ class CreateGroupDialog(QDialog):
         self.layout.addWidget(self.button_box)
         self.setLayout(self.layout)
 
+    def load_trainers(self):
+        # Загрузка всех тренеров в выпадающий список
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT trainer_id, last_name FROM trainers")
+                trainers = cursor.fetchall()
+                for trainer in trainers:
+                    self.trainer_combobox.addItem(trainer[1], trainer[0])  # Добавляем имя тренера и его id
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке тренеров: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
     def create_group(self):
         name = self.name_input.text().strip()
-        trainer_id = self.desc_input.text().strip()
+        trainer_id = self.trainer_combobox.currentData()  # Получаем trainer_id из выбранного элемента
 
         if not name:
             QMessageBox.warning(self, "Ошибка", "Введите название группы!")
+            return
+        if not trainer_id:
+            QMessageBox.warning(self, "Ошибка", "Выберите тренера!")
             return
 
         connection = get_database_connection()
@@ -222,11 +260,14 @@ class CreateGroupDialog(QDialog):
                 connection.close()
 
 
+
+
 class EditGroupDialog(QDialog):
     def __init__(self, parent, group_id):
         super().__init__(parent)
         self.group_id = group_id
         self.setWindowTitle("Изменить группу")
+        self.setGeometry(400, 200, 400, 400)
 
         self.layout = QVBoxLayout()
 
@@ -235,10 +276,11 @@ class EditGroupDialog(QDialog):
         self.layout.addWidget(self.name_label)
         self.layout.addWidget(self.name_input)
 
-        self.desc_label = QLabel("Описание группы:")
-        self.desc_input = QLineEdit()
-        self.layout.addWidget(self.desc_label)
-        self.layout.addWidget(self.desc_input)
+        self.trainer_label = QLabel("Выберите тренера:")
+        self.trainer_combobox = QComboBox()
+        self.load_trainers()  # Загрузка тренеров в выпадающий список
+        self.layout.addWidget(self.trainer_label)
+        self.layout.addWidget(self.trainer_combobox)
 
         self.load_group_data()
 
@@ -249,7 +291,24 @@ class EditGroupDialog(QDialog):
         self.layout.addWidget(self.button_box)
         self.setLayout(self.layout)
 
+    def load_trainers(self):
+        # Загрузка всех тренеров в выпадающий список
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("SELECT trainer_id, last_name FROM trainers")
+                trainers = cursor.fetchall()
+                for trainer in trainers:
+                    self.trainer_combobox.addItem(trainer[1], trainer[0])  # Добавляем имя тренера и его id
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке тренеров: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
     def load_group_data(self):
+        # Загрузка данных для редактирования группы
         connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
@@ -257,8 +316,14 @@ class EditGroupDialog(QDialog):
                 cursor.execute("SELECT name, trainer_id FROM groups WHERE group_id = %s", (self.group_id,))
                 group = cursor.fetchone()
                 if group:
-                    self.name_input.setText(str(group[0]))
-                    self.desc_input.setText(str(group[1]))
+                    self.name_input.setText(str(group[0]))  # Устанавливаем название группы
+                    
+                    trainer_id = group[1]
+                    # Устанавливаем тренера в комбобокс
+                    for index in range(self.trainer_combobox.count()):
+                        if self.trainer_combobox.itemData(index) == trainer_id:
+                            self.trainer_combobox.setCurrentIndex(index)
+                            break
                 else:
                     QMessageBox.warning(self, "Ошибка", "Группа не найдена")
                     self.reject()
@@ -270,17 +335,21 @@ class EditGroupDialog(QDialog):
 
     def edit_group(self):
         name = self.name_input.text().strip()
-        trainer_id = self.desc_input.text().strip()
+        trainer_id = self.trainer_combobox.currentData()  # Получаем trainer_id из выбранного элемента комбобокса
 
         if not name:
             QMessageBox.warning(self, "Ошибка", "Введите название группы!")
+            return
+        if not trainer_id:
+            QMessageBox.warning(self, "Ошибка", "Выберите тренера!")
             return
 
         connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
             try:
-                cursor.execute("UPDATE groups SET name = %s, trainer_id = %s WHERE group_id = %s", (name, trainer_id, self.group_id))
+                cursor.execute("UPDATE groups SET name = %s, trainer_id = %s WHERE group_id = %s",
+                               (name, trainer_id, self.group_id))
                 connection.commit()
                 QMessageBox.information(self, "Успех", "Группа успешно изменена!")
                 self.accept()
@@ -290,6 +359,9 @@ class EditGroupDialog(QDialog):
             finally:
                 cursor.close()
                 connection.close()
+
+
+
 
 
 

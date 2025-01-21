@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, 
+    QApplication, QWidget,QSpacerItem, QLabel,QSizePolicy, QLineEdit, QPushButton, QVBoxLayout, 
     QHBoxLayout, QGridLayout,QTabWidget, QMessageBox, QFrame
 )
 from PyQt6.QtGui import QPixmap
@@ -9,11 +9,12 @@ from main_buttons import (
     AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, 
     ProfileWindow, GroupWindowForTrainers, GroupMembersWindow
 )
-from group import GroupWindow
+from group_button import GroupWindow
 from sportsman_button import SportsmenWindow
 from trainer_button import TrainerWindow
-from report import ReportWindow
-from windows_to_change import get_database_connection
+from report_button import ReportWindow
+from change_buttons import get_database_connection
+import mysql.connector
 
 class AdminWindow(QWidget):
     def __init__(self, username):

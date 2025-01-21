@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (QWidget, QLabel, QTableWidget, QTableWidgetItem, QH
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 import mysql.connector
-from windows_to_change import get_database_connection
+from change_buttons import get_database_connection
 
 class SportsmenWindow(QWidget):
     def __init__(self, parent_window: QWidget):

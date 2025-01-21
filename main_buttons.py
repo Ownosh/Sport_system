@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QWidget,QDialog, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
-from windows_to_change import (
+from change_buttons import (
     CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, EditTrainingWindow, EditCompetitionWindow,EditUserWindow,SelectAwardWindow,
     CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow)
 from PyQt6.QtCore import Qt
@@ -243,14 +243,88 @@ class UserWindow(BaseWindow):
 
         
     def delete_user(self):
-        self.create_user_window = DeleteUserWindow(self)
-        self.create_user_window.show()
-        self.hide()
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите пользователя для удаления")
+            return
 
-    def update_user_table(self):
-        # Метод для обновления данных в таблице
-        self.load_data("SELECT user_id, username, password, role, phone_number, email FROM users", 
-                       ["user_id", "username", "password", "role", "phone_number", "email"])
+        user_id = self.table.item(selected_row, 0).text()
+
+        reply = QMessageBox.question(
+            self,
+            "Подтверждение удаления",
+            f"Вы уверены, что хотите удалить пользователя с ID {user_id}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            connection = get_database_connection()
+            if connection:
+                cursor = connection.cursor()
+                try:
+                    # Определяем, спортсмен или тренер
+                    cursor.execute("SELECT role FROM users WHERE user_id = %s", (user_id,))
+                    role_result = cursor.fetchone()
+                    if not role_result:
+                        QMessageBox.warning(self, "Ошибка", "Пользователь не найден!")
+                        return
+
+                    role = role_result[0]
+
+                    if role == "sportsman":
+                        # Получаем ID спортсмена
+                        cursor.execute("SELECT sportsman_id FROM sportsmen WHERE user_id = %s", (user_id,))
+                        sportsman_result = cursor.fetchone()
+                        if sportsman_result:
+                            sportsman_id = sportsman_result[0]
+
+                            # Удаляем зависимости для спортсмена
+                            cursor.execute("DELETE FROM training_attendance WHERE athlete_id = %s", (sportsman_id,))
+                            cursor.execute("DELETE FROM sportsman_group WHERE sportsman_id = %s", (sportsman_id,))
+                            cursor.execute("DELETE FROM recommendations WHERE sportsman_id = %s", (sportsman_id,))
+                            cursor.execute("DELETE FROM rewards WHERE sportsman_id = %s", (sportsman_id,))
+                            
+                            # Удаляем запись из таблицы sportsmen
+                            cursor.execute("DELETE FROM sportsmen WHERE sportsman_id = %s", (sportsman_id,))
+
+                    elif role == "trainer":
+                        # Получаем ID тренера
+                        cursor.execute("SELECT trainer_id FROM trainers WHERE user_id = %s", (user_id,))
+                        trainer_result = cursor.fetchone()
+                        if trainer_result:
+                            trainer_id = trainer_result[0]
+
+                            # Удаляем зависимости для тренера
+                            cursor.execute("DELETE FROM groups WHERE trainer_id = %s", (trainer_id,))
+                            cursor.execute("DELETE FROM trainings WHERE trainer = %s", (trainer_id,))
+                            cursor.execute("DELETE FROM recommendations WHERE trainer_id = %s", (trainer_id,))
+                            cursor.execute("DELETE FROM competitions WHERE trainer = %s", (trainer_id,))
+                            
+                            # Удаляем запись из таблицы trainers
+                            cursor.execute("DELETE FROM trainers WHERE trainer_id = %s", (trainer_id,))
+
+                    # Удаляем пользователя из таблицы users
+                    cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+                    connection.commit()
+
+                    QMessageBox.information(self, "Успех", "Пользователь успешно удален!")
+                    self.load_data(
+                        "SELECT user_id, username, password, role, phone_number, email FROM users",
+                        ["user_id", "username", "password", "role", "phone_number", "email"],
+                    )
+                except mysql.connector.Error as e:
+                    QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении пользователя: {e}")
+                    connection.rollback()
+                finally:
+                    cursor.close()
+                    connection.close()
+
+
+
+
+
+
 
 
 class TrainingWindow(BaseWindow):
@@ -285,17 +359,47 @@ class TrainingWindow(BaseWindow):
         self.create_user_window = EditTrainingWindow(self, training_id)
         self.create_user_window.show()
         
-    def delete_training(self): 
-        self.create_user_window = DeleteTrainingWindow(self)
-        self.create_user_window.show()
-        self.hide()
+    def delete_training(self):
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите тренировку для удаления")
+            return
+
+        training_id = self.table.item(selected_row, 0).text()
+
+        # Запрос на удаление тренировки
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                # Проверка, существует ли тренировка в базе
+                cursor.execute("SELECT training_id FROM trainings WHERE training_id = %s", (training_id,))
+                training = cursor.fetchone()
+
+                if training:
+                    # Удаление тренировок из связанной таблицы attendance
+                    cursor.execute("DELETE FROM training_attendance WHERE training_id = %s", (training_id,))
+
+                    # Удаление самой тренировки
+                    cursor.execute("DELETE FROM trainings WHERE training_id = %s", (training_id,))
+                    connection.commit()
+                    QMessageBox.information(self, "Успех", "Тренировка успешно удалена!")
+
+                    # Обновляем данные на экране
+                    self.load_data("""
+                        SELECT t.training_id, t.name_training, g.name, t.date, t.location
+                        FROM trainings t
+                        JOIN groups g ON t.group_id = g.group_id
+                    """, ["training_id", "name_training", "name", "date", "location"])
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Такой тренировки нет!")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении тренировки: {e}")
+                connection.rollback()
+            finally:
+                cursor.close()
+                connection.close()
         
-    def update_training_table(self):
-        self.load_data("""
-            SELECT t.training_id, t.name_training, g.name, t.date, t.location 
-            FROM trainings t
-            JOIN groups g ON t.group_id = g.group_id
-        """, ["training_id", "name_training", "name", "date", "location"])
         
 class CompetitionWindow(BaseWindow):
     def __init__(self, parent_window):
@@ -325,15 +429,39 @@ class CompetitionWindow(BaseWindow):
 
         
     def delete_competition(self):  
-        self.create_user_window = DeleteCompetitionWindow(self)
-        self.create_user_window.show()
-        self.hide()
-        
-    def update_competition_table(self):
-        # Метод для обновления данных в таблице
-        self.load_data("SELECT competition_id, name, date, location FROM competitions", 
-                       ["competition_id", "name", "date", "location"])
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите соревнование для удаления")
+            return
 
+        competition_id = self.table.item(selected_row, 0).text()
+
+        # Запрос на удаление соревнования
+        connection = get_database_connection()
+        if connection:
+            cursor = connection.cursor()
+            try:
+                # Проверка, существует ли соревнование в базе
+                cursor.execute("SELECT competition_id FROM competitions WHERE competition_id = %s", (competition_id,))
+                competition = cursor.fetchone()
+
+                if competition:
+                    # Удаление соревнования
+                    cursor.execute("DELETE FROM competitions WHERE competition_id = %s", (competition_id,))
+                    connection.commit()
+                    QMessageBox.information(self, "Успех", "Соревнование успешно удалено!")
+
+                    # Обновляем данные на экране
+                    self.load_data("SELECT competition_id, name, date, location FROM competitions", 
+                                   ["competition_id", "name", "date", "location"])
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Такого соревнования нет!")
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении соревнования: {e}")
+                connection.rollback()
+            finally:
+                cursor.close()
+                connection.close()
         
 
 class GroupWindowForTrainers(BaseWindow2):
