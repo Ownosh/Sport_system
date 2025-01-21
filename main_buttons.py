@@ -247,6 +247,12 @@ class UserWindow(BaseWindow):
         self.create_user_window.show()
         self.hide()
 
+    def update_user_table(self):
+        # Метод для обновления данных в таблице
+        self.load_data("SELECT user_id, username, password, role, phone_number, email FROM users", 
+                       ["user_id", "username", "password", "role", "phone_number", "email"])
+
+
 class TrainingWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
@@ -284,6 +290,13 @@ class TrainingWindow(BaseWindow):
         self.create_user_window.show()
         self.hide()
         
+    def update_training_table(self):
+        self.load_data("""
+            SELECT t.training_id, t.name_training, g.name, t.date, t.location 
+            FROM trainings t
+            JOIN groups g ON t.group_id = g.group_id
+        """, ["training_id", "name_training", "name", "date", "location"])
+        
 class CompetitionWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
@@ -315,15 +328,12 @@ class CompetitionWindow(BaseWindow):
         self.create_user_window = DeleteCompetitionWindow(self)
         self.create_user_window.show()
         self.hide()
+        
+    def update_competition_table(self):
+        # Метод для обновления данных в таблице
+        self.load_data("SELECT competition_id, name, date, location FROM competitions", 
+                       ["competition_id", "name", "date", "location"])
 
-class TrainerWindow(BaseWindow2):
-    def __init__(self, parent_window):
-        column_labels = ["ID Тренера", "Имя", "Фамилия", "Отчество", "Дата Рождения", "Специализация"]
-        super().__init__(parent_window, "Тренера", "Списпок тренеров", column_labels)
-        
-        self.load_data("SELECT trainer_id, first_name, last_name, patronymic, birthdate, specialty FROM trainers", 
-                       ["trainer_id", "first_name", "last_name", "patronymic", "birthdate", "specialty"])
-        
         
 
 class GroupWindowForTrainers(BaseWindow2):

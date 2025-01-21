@@ -7,10 +7,11 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 from main_buttons import (
     AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, 
-    ProfileWindow, TrainerWindow, GroupWindowForTrainers, GroupMembersWindow
+    ProfileWindow, GroupWindowForTrainers, GroupMembersWindow
 )
 from group import GroupWindow
 from sportsman_button import SportsmenWindow
+from trainer_button import TrainerWindow
 from report import ReportWindow
 from windows_to_change import get_database_connection
 
@@ -44,6 +45,7 @@ class AdminWindow(QWidget):
         top_nav_layout.addWidget(self.training_button)
         top_nav_layout.addWidget(self.user_button)
         top_nav_layout.addWidget(self.award_button)
+
 
    
 
