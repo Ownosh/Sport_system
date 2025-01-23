@@ -20,7 +20,9 @@ def get_database_connection():
         return connection 
     except mysql.connector.Error as e: QMessageBox.critical(None, "Ошибка подключения", f"Ошибка при подключении к базе данных: {e}")
 
-class CreateUserWindow(QWidget):
+
+
+class CreateUserWindow(QWidget): 
     def __init__(self, parent_window):
         super().__init__()
         self.parent_window = parent_window
@@ -35,6 +37,7 @@ class CreateUserWindow(QWidget):
         self.middle_name_label = QLabel("Отчество:")
         self.dob_label = QLabel("Дата рождения (ДД.ММ.ГГГГ):")
         self.city_label = QLabel("Город:")
+        self.gender_label = QLabel("Пол:")  # Добавленное поле "Пол"
         self.role_label = QLabel("Должность:")
         self.sport_type_label = QLabel("Тип спорта:")
         self.phone_label = QLabel("Номер телефона:")
@@ -49,6 +52,8 @@ class CreateUserWindow(QWidget):
         self.middle_name_input = QLineEdit()
         self.dob_input = QLineEdit()
         self.city_input = QLineEdit()
+        self.gender_input = QComboBox()  # Комбобокс для выбора пола
+        self.gender_input.addItems(["male", "female"])  # Доступные опции
         self.role_input = QComboBox()
         self.role_input.addItems(["Sportsman", "Trainer"])  # Исключаем "Admin"
         self.sport_type_input = QLineEdit()
@@ -82,14 +87,16 @@ class CreateUserWindow(QWidget):
         grid_layout.addWidget(self.dob_input, 5, 1)
         grid_layout.addWidget(self.city_label, 6, 0)
         grid_layout.addWidget(self.city_input, 6, 1)
-        grid_layout.addWidget(self.role_label, 7, 0)
-        grid_layout.addWidget(self.role_input, 7, 1)
-        grid_layout.addWidget(self.sport_type_label, 8, 0)
-        grid_layout.addWidget(self.sport_type_input, 8, 1)
-        grid_layout.addWidget(self.phone_label, 9, 0)
-        grid_layout.addWidget(self.phone_input, 9, 1)
-        grid_layout.addWidget(self.email_label, 10, 0)
-        grid_layout.addWidget(self.email_input, 10, 1)
+        grid_layout.addWidget(self.gender_label, 7, 0)  # Позиция для выбора пола
+        grid_layout.addWidget(self.gender_input, 7, 1)  # Позиция для выбора пола
+        grid_layout.addWidget(self.role_label, 8, 0)
+        grid_layout.addWidget(self.role_input, 8, 1)
+        grid_layout.addWidget(self.sport_type_label, 9, 0)
+        grid_layout.addWidget(self.sport_type_input, 9, 1)
+        grid_layout.addWidget(self.phone_label, 10, 0)
+        grid_layout.addWidget(self.phone_input, 10, 1)
+        grid_layout.addWidget(self.email_label, 11, 0)
+        grid_layout.addWidget(self.email_input, 11, 1)
 
         form_layout.addLayout(grid_layout)
         form_layout.addWidget(self.submit_button)
@@ -127,21 +134,25 @@ class CreateUserWindow(QWidget):
         middle_name = self.middle_name_input.text().strip()
         dob = self.dob_input.text().strip()
         city = self.city_input.text().strip()
+        gender = self.gender_input.currentText()  # Получаем выбранный пол
         role = self.role_input.currentText()
         sport_type = self.sport_type_input.text().strip()
         phone = self.phone_input.text().strip()
         email = self.email_input.text().strip()
 
-        if not all([username, password, first_name, last_name, dob, city, phone, email]):
+        if not all([username, password, first_name, last_name, city, phone, email]):
             QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля.")
             return
 
-        try:
-            # Проверка формата даты
-            datetime.strptime(dob, "%d.%m.%Y")
-        except ValueError:
-            QMessageBox.warning(self, "Ошибка", "Некорректный формат даты (используйте ДД.ММ.ГГГГ).")
-            return
+        # Преобразование даты в формат базы данных (ГГГГ-МИ-ММ)
+        if dob:
+            try:
+                dob = datetime.strptime(dob, "%d.%m.%Y").strftime("%Y-%m-%d")
+            except ValueError:
+                QMessageBox.warning(self, "Ошибка", "Некорректный формат даты (используйте ДД.ММ.ГГГГ).")
+                return
+        else:
+            dob = "0000-00-00"  # Если дата не указана, сохраняем в виде "0000-00-00"
 
         db = get_database_connection()
         if not db:
@@ -157,12 +168,13 @@ class CreateUserWindow(QWidget):
             cursor.execute(insert_user_query, (username, password, email, phone, role))
             user_id = cursor.lastrowid
 
+            # Добавлен gender при создании пользователя
             if role == "Sportsman":
                 insert_sportsman_query = """
-                INSERT INTO sportsmen (user_id, first_name, last_name, patronymic, birthdate, city, typesport)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO sportsmen (user_id, first_name, last_name, patronymic, birthdate, city, typesport, gender)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
-                cursor.execute(insert_sportsman_query, (user_id, first_name, last_name, middle_name, dob, city, sport_type))
+                cursor.execute(insert_sportsman_query, (user_id, first_name, last_name, middle_name, dob, city, sport_type, gender))
             elif role == "Trainer":
                 insert_trainer_query = """
                 INSERT INTO trainers (user_id, first_name, last_name, patronymic, birthdate, city, specialty)
@@ -191,6 +203,8 @@ class CreateUserWindow(QWidget):
     def go_back(self):
         self.close()
         self.parent_window.show()
+
+
 
 class CreateRewardWindow(QWidget):
     def __init__(self, parent_window):
@@ -1214,18 +1228,32 @@ class EditUserWindow(QWidget):
         # Элементы формы
         self.username_label = QLabel("Логин:")
         self.password_label = QLabel("Пароль:")
-        self.email_label = QLabel("Электронная почта:")
+        self.first_name_label = QLabel("Имя:")
+        self.last_name_label = QLabel("Фамилия:")
+        self.middle_name_label = QLabel("Отчество:")
+        self.dob_label = QLabel("Дата рождения (ДД.ММ.ГГГГ):")
+        self.city_label = QLabel("Город:")
+        self.sport_type_label = QLabel("Тип спорта:")
         self.phone_label = QLabel("Номер телефона:")
-        self.role_label = QLabel("Должность:")
+        self.email_label = QLabel("Электронная почта:")
+        self.gender_label = QLabel("Пол:")
 
         # Поля ввода
         self.username_input = QLineEdit()
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.email_input = QLineEdit()
+        self.first_name_input = QLineEdit()
+        self.last_name_input = QLineEdit()
+        self.middle_name_input = QLineEdit()
+        self.dob_input = QLineEdit()
+        self.city_input = QLineEdit()
+        self.sport_type_input = QLineEdit()
         self.phone_input = QLineEdit()
-        self.role_input = QComboBox()
-        self.role_input.addItems(["Sportsman", "Trainer", "Admin"])
+        self.email_input = QLineEdit()
+
+        # Пол выбора пола
+        self.gender_input = QComboBox()
+        self.gender_input.addItems(["male", "female"])
 
         # Кнопка отправки формы
         self.submit_button = QPushButton("Сохранить изменения")
@@ -1236,23 +1264,51 @@ class EditUserWindow(QWidget):
         self.back_button.clicked.connect(self.go_back)
 
         # Размещение элементов на форме
-        layout = QVBoxLayout()
+        layout = QHBoxLayout()
+        form_layout = QVBoxLayout()
+        grid_layout = QGridLayout()
 
-        form_layout = QGridLayout()
-        form_layout.addWidget(self.username_label, 0, 0)
-        form_layout.addWidget(self.username_input, 0, 1)
-        form_layout.addWidget(self.password_label, 1, 0)
-        form_layout.addWidget(self.password_input, 1, 1)
-        form_layout.addWidget(self.email_label, 2, 0)
-        form_layout.addWidget(self.email_input, 2, 1)
-        form_layout.addWidget(self.phone_label, 3, 0)
-        form_layout.addWidget(self.phone_input, 3, 1)
-        form_layout.addWidget(self.role_label, 4, 0)
-        form_layout.addWidget(self.role_input, 4, 1)
+        grid_layout.addWidget(self.username_label, 0, 0)
+        grid_layout.addWidget(self.username_input, 0, 1)
+        grid_layout.addWidget(self.password_label, 1, 0)
+        grid_layout.addWidget(self.password_input, 1, 1)
+        grid_layout.addWidget(self.first_name_label, 2, 0)
+        grid_layout.addWidget(self.first_name_input, 2, 1)
+        grid_layout.addWidget(self.last_name_label, 3, 0)
+        grid_layout.addWidget(self.last_name_input, 3, 1)
+        grid_layout.addWidget(self.middle_name_label, 4, 0)
+        grid_layout.addWidget(self.middle_name_input, 4, 1)
+        grid_layout.addWidget(self.dob_label, 5, 0)
+        grid_layout.addWidget(self.dob_input, 5, 1)
+        grid_layout.addWidget(self.city_label, 6, 0)
+        grid_layout.addWidget(self.city_input, 6, 1)
+        grid_layout.addWidget(self.gender_label, 7, 0)
+        grid_layout.addWidget(self.gender_input, 7, 1)
+        grid_layout.addWidget(self.sport_type_label, 8, 0)
+        grid_layout.addWidget(self.sport_type_input, 8, 1)
+        grid_layout.addWidget(self.phone_label, 9, 0)
+        grid_layout.addWidget(self.phone_input, 9, 1)
+        grid_layout.addWidget(self.email_label, 10, 0)
+        grid_layout.addWidget(self.email_input, 10, 1)
+
+        form_layout.addLayout(grid_layout)
+        form_layout.addWidget(self.submit_button)
+        form_layout.addWidget(self.back_button)
+
+        photo_layout = QVBoxLayout()
+        self.photo_label = QLabel()
+        self.photo_label.setFixedSize(400, 300)
+        self.photo_label.setStyleSheet("border: 1px solid black;")
+
+        self.add_photo_button = QPushButton("Изменить фото")
+        self.add_photo_button.clicked.connect(self.add_photo)
+
+        photo_layout.addWidget(self.photo_label)
+        photo_layout.addWidget(self.add_photo_button)
+        photo_layout.addStretch()
 
         layout.addLayout(form_layout)
-        layout.addWidget(self.submit_button)
-        layout.addWidget(self.back_button)  # Добавляем кнопку "Назад"
+        layout.addLayout(photo_layout)
 
         self.setLayout(layout)
 
@@ -1264,21 +1320,78 @@ class EditUserWindow(QWidget):
         if connection:
             cursor = connection.cursor()
             try:
-                print(f"Загрузка данных для пользователя с ID: {self.user_id}")
-                # Получение данных из таблицы users
-                cursor.execute("SELECT username, password, email, phone_number, role FROM users WHERE user_id = %s", (self.user_id,))
+                cursor.execute("""
+                    SELECT username, password, email, phone_number, role
+                    FROM users
+                    WHERE user_id = %s
+                """, (self.user_id,))
                 user_data = cursor.fetchone()
                 if user_data:
-                    print(f"Данные из таблицы users: {user_data}")
                     self.username_input.setText(user_data[0])
                     self.password_input.setText(user_data[1])
                     self.email_input.setText(user_data[2])
                     self.phone_input.setText(user_data[3])
-                    index = self.role_input.findText(user_data[4].capitalize())
-                    if index != -1:
-                        self.role_input.setCurrentIndex(index)
+
+                    # Загрузка фото
+                    if user_data[4].lower() == "sportsman":
+                        cursor.execute("""
+                            SELECT photo
+                            FROM sportsmen
+                            WHERE user_id = %s
+                        """, (self.user_id,))
+                    elif user_data[4].lower() == "trainer":
+                        cursor.execute("""
+                            SELECT photo
+                            FROM trainers
+                            WHERE user_id = %s
+                        """, (self.user_id,))
+
+                    photo_data = cursor.fetchone()
+                    if photo_data and photo_data[0]:
+                        photo = QPixmap()
+                        photo.loadFromData(photo_data[0])
+                        self.photo_label.setPixmap(photo.scaled(400, 300, Qt.AspectRatioMode.KeepAspectRatio))
+
+                    # Загружаем дополнительные данные в зависимости от роли
+                    if user_data[4].lower() == "sportsman":
+                        cursor.execute("""
+                            SELECT first_name, last_name, patronymic, birthdate, city, typesport, gender
+                            FROM sportsmen
+                            WHERE user_id = %s
+                        """, (self.user_id,))
+                        sportsman_data = cursor.fetchone()
+                        if sportsman_data:
+                            self.first_name_input.setText(sportsman_data[0])
+                            self.last_name_input.setText(sportsman_data[1])
+                            self.middle_name_input.setText(sportsman_data[2] if sportsman_data[2] else "")
+                            dob = sportsman_data[3]
+                            if dob == "0000-00-00":
+                                self.dob_input.setText("")
+                            else:
+                                self.dob_input.setText(dob.strftime("%d.%m.%Y"))
+                            self.city_input.setText(sportsman_data[4] if sportsman_data[4] else "")
+                            self.sport_type_input.setText(sportsman_data[5] if sportsman_data[5] else "")
+                            self.gender_input.setCurrentText(sportsman_data[6] if sportsman_data[6] else "male")
+                    else:
+                        cursor.execute("""
+                            SELECT first_name, last_name, patronymic, birthdate, city, specialty
+                            FROM trainers
+                            WHERE user_id = %s
+                        """, (self.user_id,))
+                        trainer_data = cursor.fetchone()
+                        if trainer_data:
+                            self.first_name_input.setText(trainer_data[0])
+                            self.last_name_input.setText(trainer_data[1])
+                            self.middle_name_input.setText(trainer_data[2] if trainer_data[2] else "")
+                            dob = trainer_data[3]
+                            if dob == "0000-00-00":
+                                self.dob_input.setText("")
+                            else:
+                                self.dob_input.setText(dob.strftime("%d.%m.%Y"))
+                            self.city_input.setText(trainer_data[4] if trainer_data[4] else "")
+                            self.sport_type_input.setText(trainer_data[5] if trainer_data[5] else "")
                 else:
-                    QMessageBox.warning(self, "Ошибка", "Не удалось загрузить данные пользователя")
+                    QMessageBox.warning(self, "Ошибка", "Не удалось загрузить данные пользователя.")
             except mysql.connector.Error as e:
                 print(f"Ошибка при загрузке данных пользователя: {e}")
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных пользователя: {e}")
@@ -1286,52 +1399,83 @@ class EditUserWindow(QWidget):
                 cursor.close()
                 connection.close()
 
+    def add_photo(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Выберите изображение", "", "Изображения (*.png *.jpg *.jpeg)")
+        if file_name:
+            pixmap = QPixmap(file_name)
+            self.photo_label.setPixmap(pixmap.scaled(400, 300, Qt.AspectRatioMode.KeepAspectRatio))
+            self.photo_file = file_name
+
     def submit_form(self):
         username = self.username_input.text().strip()
         password = self.password_input.text().strip()
         email = self.email_input.text().strip()
         phone = self.phone_input.text().strip()
-        role = self.role_input.currentText()
+        first_name = self.first_name_input.text().strip()
+        last_name = self.last_name_input.text().strip()
+        middle_name = self.middle_name_input.text().strip()
+        dob = self.dob_input.text().strip()
+        city = self.city_input.text().strip()
+        sport_type = self.sport_type_input.text().strip()
+        gender = self.gender_input.currentText()
 
-        if not all([username, password, email, phone]):
-            QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля.")
+        if not all([username, password, email, phone, first_name, last_name]):
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все обязательные поля.")
             return
-
-        db = get_database_connection()
-        if not db:
-            return
-
-        cursor = db.cursor()
 
         try:
-            # Обновление данных пользователя
-            update_user_query = """
-            UPDATE users SET username = %s, password = %s, email = %s, phone_number = %s, role = %s
-            WHERE user_id = %s
-            """
-            cursor.execute(update_user_query, (username, password, email, phone, role, self.user_id))
-            db.commit()
+            if dob:
+                datetime.strptime(dob, "%d.%m.%Y")
+            else:
+                dob = None
+        except ValueError:
+            QMessageBox.warning(self, "Ошибка", "Некорректный формат даты (используйте ДД.ММ.ГГГГ).")
+            return
 
-            # Передача параметров для загрузки данных
-            query = "SELECT user_id, username, password, email, phone_number, role FROM users"
-            columns = ["user_id", "username", "password", "email", "phone_number", "role"]
-            self.parent_window.load_data(query, columns)
+        connection = get_database_connection()
+        if not connection:
+            return
 
+        cursor = connection.cursor()
+        try:
+            cursor.execute("""
+                UPDATE users
+                SET username = %s, password = %s, email = %s, phone_number = %s
+                WHERE user_id = %s
+            """, (username, password, email, phone, self.user_id))
+
+            cursor.execute("""
+                UPDATE sportsmen
+                SET first_name = %s, last_name = %s, patronymic = %s, birthdate = %s, city = %s, typesport = %s, gender = %s
+                WHERE user_id = %s
+            """, (first_name, last_name, middle_name, dob if dob else None, city, sport_type, gender, self.user_id))
+
+            if hasattr(self, 'photo_file'):
+                with open(self.photo_file, "rb") as file:
+                    photo_data = file.read()
+                cursor.execute("UPDATE sportsmen SET photo = %s WHERE user_id = %s", (photo_data, self.user_id))
+
+            connection.commit()
             QMessageBox.information(self, "Успех", "Данные пользователя успешно обновлены.")
             self.close()
             self.parent_window.show()
-
         except mysql.connector.Error as e:
-            db.rollback()
+            connection.rollback()
             print(f"Ошибка при выполнении запроса: {e}")
-            QMessageBox.critical(self, "Ошибка", f"Ошибка при обновлении данных пользователя в базе данных: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при обновлении данных пользователя: {e}")
         finally:
             cursor.close()
-            db.close()
+            connection.close()
 
     def go_back(self):
-        self.close()  # Закрыть текущее окно
-        self.parent_window.show()  # Показать родительское окно
+        self.close()
+        self.parent_window.show()
+
+
+
+
+
+
 
 class AwardDetailWindow(QWidget):
     def __init__(self, parent_window, award_id):

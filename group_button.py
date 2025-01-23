@@ -28,7 +28,7 @@ class GroupWindow(QWidget):
         # Таблица
         self.table = QTableWidget()
         self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["group_id", "name", "trainer_id"])
+        self.table.setHorizontalHeaderLabels(["ID Группы", "Название группы", "ID Тренера"])
         for i in range(3):
             self.table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
 
@@ -99,8 +99,12 @@ class GroupWindow(QWidget):
         self.parent_window.show()
 
     def load_data(self):
-        query = "SELECT group_id, name, trainer_id FROM groups"
-        columns = ["group_id", "name", "trainer_id"]
+        query = """
+            SELECT g.group_id, g.name, t.last_name AS trainer_last_name
+            FROM groups g
+            LEFT JOIN trainers t ON g.trainer_id = t.trainer_id
+        """
+        columns = ["group_id", "name", "trainer_last_name"]
         db = get_database_connection()
         if not db:
             return
@@ -112,12 +116,15 @@ class GroupWindow(QWidget):
             self.table.setRowCount(len(rows))
             for row_index, row in enumerate(rows):
                 for col_index, col in enumerate(columns):
-                    self.table.setItem(row_index, col_index, QTableWidgetItem(str(row[col])))
+                    self.table.setItem(row_index, col_index, QTableWidgetItem(str(row[col]) if row[col] is not None else ""))
+            # Обновляем заголовок таблицы
+            self.table.setHorizontalHeaderLabels(["ID Группы", "Название группы", "Фамилия тренера"])
         except mysql.connector.Error as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка загрузки данных: {e}")
         finally:
             cursor.close()
-            db.close()
+        db.close()
+
 
     def open_create_group_dialog(self):
         dialog = CreateGroupDialog(self)

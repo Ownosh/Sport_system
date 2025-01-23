@@ -264,14 +264,14 @@ class InjuryDialog(QDialog):
                 min-height: 80px; /* Минимальная высота для многострочного поля */
             }
             QPushButton {
-                background-color: #4CAF50;
+                background-color: #707070;
                 color: white;
                 padding: 10px 15px;
                 border: none;
                 border-radius: 5px;
             }
             QPushButton:hover {
-                background-color: #45a049;
+                background-color: #505050;
             }
         """)
 
@@ -393,14 +393,14 @@ class ViewInjuriesDialog(QDialog):
                 min-height: 80px; /* Минимальная высота для многострочного поля */
             }
             QPushButton {
-                background-color: #4CAF50;
+                background-color: #707070;
                 color: white;
                 padding: 10px 15px;
                 border: none;
                 border-radius: 5px;
             }
             QPushButton:hover {
-                background-color: #45a049;
+                background-color: #505050;
             }
         """)
 

@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout, QGridLayout,QTabWidget, QMessageBox, QFrame
 )
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt,QTimer
 from main_buttons import (
     AwardWindow, UserWindow, TrainingWindow, CompetitionWindow, 
     ProfileWindow, GroupWindowForTrainers, GroupMembersWindow
@@ -47,10 +47,7 @@ class AdminWindow(QWidget):
         top_nav_layout.addWidget(self.user_button)
         top_nav_layout.addWidget(self.award_button)
 
-
-   
-
-    # Боковая навигация
+        # Боковая навигация
         side_nav_layout = QVBoxLayout()
         self.nav_buttons = {
             "Группы": self.open_group_,
@@ -62,9 +59,9 @@ class AdminWindow(QWidget):
         for label, handler in self.nav_buttons.items():
             side_nav_layout.addWidget(self.create_button(label, handler))
 
-        side_nav_layout.addStretch()  
+        side_nav_layout.addStretch()
         self.exit_button = self.create_button("Выход", self.close)
-        side_nav_layout.addWidget(self.exit_button)  
+        side_nav_layout.addWidget(self.exit_button)
 
         content_layout = QHBoxLayout()
         content_layout.addWidget(self.workspace)
@@ -76,8 +73,15 @@ class AdminWindow(QWidget):
 
     def create_button(self, text, handler):
         button = QPushButton(text)
-        button.clicked.connect(handler)
+        button.clicked.connect(lambda: self.handle_button_click(button, handler))
         return button
+
+    def handle_button_click(self, button, handler):
+        if not button.isEnabled():
+            return
+        button.setEnabled(False)
+        QTimer.singleShot(5000, lambda: button.setEnabled(True))  # Блокируем кнопку на 10 секунд
+        handler()
 
     def open_window(self, window_class, *args, **kwargs):
         self.hide()
@@ -118,11 +122,12 @@ class AdminWindow(QWidget):
 
     def open_user_(self):
         self.open_window(UserWindow)
-        
+
     def open_profile_(self):
         self.clear_workspace()
         profile_widget = ProfileWindow(username=self.current_username)
         self.workspace.layout().addWidget(profile_widget)
+
 
 
 class AthleteWindow(QWidget):
