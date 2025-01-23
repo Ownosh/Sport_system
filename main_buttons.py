@@ -172,48 +172,66 @@ class BaseWindow2(QWidget):
 
 class AwardWindow(BaseWindow):
     def __init__(self, parent_window):
+        # Инициализируем с нужными параметрами
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
-        column_labels = ["reward_id", "data", "reward_description"]
+        column_labels = ["reward_id", "Дата", "Описание награды"]
         super().__init__(parent_window, "Журнал наград", "Список наград", column_labels, button_labels)
+
         self.add_button.clicked.connect(self.add_award)
         self.edit_button.clicked.connect(self.edit_award)
         self.delete_button.clicked.connect(self.delete_award)
-        
-    def load_awards(self):
+
+        # Загружаем данные о наградах
+        self.load_data("SELECT reward_id, reward_date, reward_description FROM rewards", ["reward_id", "reward_date", "reward_description"])
+
+    def add_award(self):
+        # Открыть окно для добавления награды
+        self.create_award_window = CreateRewardWindow(self)
+        self.create_award_window.show()
+        self.hide()
+
+    def edit_award(self):
+        # Открыть окно для редактирования награды
+        self.select_award_window = SelectAwardWindow(self)
+        self.select_award_window.show()
+        self.hide()
+
+    def delete_award(self):
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите награду для удаления")
+            return
+
+        reward_id = self.table.item(selected_row, 0).text()
+
+        # Запрос на удаление награды
         connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
             try:
-                cursor.execute("SELECT award_, award_date, description FROM awards WHERE sportsman_id = %s", (self.sportsman_id,))
-                awards = cursor.fetchall()
-                self.table.setRowCount(len(awards))
-                for row, award in enumerate(awards):
-                    self.table.setItem(row, 0, QTableWidgetItem(award[0]))
-                    award_date = award[1].strftime("%Y-%m-%d") if award[1] else "Дата отсутствует"
-                    self.table.setItem(row, 1, QTableWidgetItem(award_date))
-                    self.table.setItem(row, 2, QTableWidgetItem(award[2]))
+                # Проверка, существует ли награда в базе
+                cursor.execute("SELECT reward_id FROM rewards WHERE reward_id = %s", (reward_id,))
+                reward = cursor.fetchone()
+
+                if reward:
+                    # Удаление награды
+                    cursor.execute("DELETE FROM rewards WHERE reward_id = %s", (reward_id,))
+                    connection.commit()
+                    QMessageBox.information(self, "Успех", "Награда успешно удалена!")
+
+                    # Обновляем данные на экране
+                    self.load_data("SELECT reward_id, reward_date, reward_description FROM rewards", 
+                                ["reward_id", "reward_date", "reward_description"])
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Такой награды нет!")
             except mysql.connector.Error as e:
-                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке наград: {e}")
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении награды: {e}")
+                connection.rollback()
             finally:
                 cursor.close()
                 connection.close()
 
 
-
-    def add_award(self): 
-        self.create_award_window = CreateRewardWindow(self)
-        self.create_award_window.show()
-        self.hide()
-        
-    def edit_award(self): 
-        self.create_award_window = SelectAwardWindow(self)
-        self.create_award_window.show()
-        self.hide()
-        
-    def delete_award(self): 
-        self.create_award_window = DeleteAwardWindow(self)
-        self.create_award_window.show()
-        self.hide()
         
 class UserWindow(BaseWindow):
     def __init__(self, parent_window):

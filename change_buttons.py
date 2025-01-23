@@ -314,12 +314,13 @@ class CreateRewardWindow(QWidget):
         self.close()  # Закрыть текущее окно
         self.parent_window.show()  # Показать родительское окно
 
+
 class CreateTrainingWindow(QWidget):
     def __init__(self, parent_window):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle("Создание тренировки")
-        self.setGeometry(350, 150, 800, 400)
+        self.setGeometry(350, 150, 800, 600)  # Увеличил размер окна для отображения таблицы
 
         self.setup_ui()
         self.load_data_from_db()
@@ -347,6 +348,14 @@ class CreateTrainingWindow(QWidget):
 
         main_layout.addLayout(form_layout)
 
+        # Таблица для отображения спортсменов
+        self.athletes_table = QTableWidget()
+        self.athletes_table.setRowCount(0)
+        self.athletes_table.setColumnCount(2)
+        self.athletes_table.setHorizontalHeaderLabels(["Спортсмен", "Присутствует"])
+        self.athletes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        main_layout.addWidget(self.athletes_table)
+
         # Кнопки управления
         buttons_layout = QHBoxLayout()
         self.add_button = QPushButton("Добавить тренировку")
@@ -361,9 +370,12 @@ class CreateTrainingWindow(QWidget):
         self.add_button.clicked.connect(self.add_training)
         self.back_button.clicked.connect(self.go_back)
 
+        # Подключаем изменение выбранной группы для загрузки спортсменов
+        self.group_input.currentIndexChanged.connect(self.load_athletes_for_selected_group)
+
     def load_data_from_db(self):
         """Загрузка данных из базы данных."""
-        connection = get_database_connection()
+        connection = get_database_connection()  # Используем вашу функцию для подключения
         if connection:
             cursor = connection.cursor()
             try:
@@ -383,6 +395,49 @@ class CreateTrainingWindow(QWidget):
                 cursor.close()
                 connection.close()
 
+    def load_athletes_for_selected_group(self):
+        """Загрузка спортсменов для выбранной группы."""
+        group_name = self.group_input.currentText()
+
+        if not group_name:
+            return
+
+        connection = get_database_connection()  # Используем вашу функцию для подключения
+        if connection:
+            cursor = connection.cursor()
+            try:
+                # Получаем group_id для выбранной группы
+                cursor.execute("SELECT group_id FROM groups WHERE name = %s", (group_name,))
+                group = cursor.fetchone()
+
+                if not group:
+                    QMessageBox.warning(self, "Ошибка", "Группа не найдена.")
+                    return
+
+                group_id = group[0]
+
+                # Загрузка спортсменов, которые принадлежат к выбранной группе
+                cursor.execute("""
+                    SELECT s.sportsman_id, s.last_name
+                    FROM sportsmen s
+                    JOIN sportsman_group sg ON s.sportsman_id = sg.sportsman_id
+                    WHERE sg.group_id = %s
+                """, (group_id,))
+
+                sportsmen = cursor.fetchall()
+                self.athletes_table.setRowCount(len(sportsmen))
+                for row, athlete in enumerate(sportsmen):
+                    name_item = QTableWidgetItem(athlete[1])  # Фамилия спортсмена
+                    presence_checkbox = QCheckBox()  # Чекбокс для присутствия
+                    self.athletes_table.setItem(row, 0, name_item)
+                    self.athletes_table.setCellWidget(row, 1, presence_checkbox)
+
+            except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке спортсменов: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+
     def add_training(self):
         """Добавление тренировки в базу данных."""
         # Получение данных из полей
@@ -397,7 +452,7 @@ class CreateTrainingWindow(QWidget):
             QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены.")
             return
 
-        connection = get_database_connection()
+        connection = get_database_connection()  # Используем вашу функцию для подключения
         if connection:
             cursor = connection.cursor()
             try:
@@ -423,12 +478,29 @@ class CreateTrainingWindow(QWidget):
                                (training_name, training_datetime, trainer_id, group_id, location))
                 connection.commit()
 
-                # Обновление данных в родительском окне
-                self.parent_window.load_data("""SELECT t.training_id, t.name_training, g.name, t.date, t.location 
-                                                FROM trainings t
-                                                JOIN groups g ON t.group_id = g.group_id""",
-                                               ["training_id", "name_training", "name", "date", "location"])
+                # Получение training_id последней добавленной тренировки
+                cursor.execute("SELECT LAST_INSERT_ID()")
+                training_id = cursor.fetchone()[0]
 
+                # Сохранение данных о присутствующих
+                presence_data = []
+                for row in range(self.athletes_table.rowCount()):
+                    athlete_name = self.athletes_table.item(row, 0).text()
+                    is_present = self.athletes_table.cellWidget(row, 1).isChecked()
+                    cursor.execute("SELECT sportsman_id FROM sportsmen WHERE last_name = %s", (athlete_name,))
+                    athlete = cursor.fetchone()
+                    if athlete:
+                        athlete_id = athlete[0]
+                        presence_data.append((training_id, athlete_id, is_present))
+
+                for training_id, athlete_id, is_present in presence_data:
+                    cursor.execute(""" 
+                        INSERT INTO training_attendance (training_id, athlete_id, is_present)
+                        VALUES (%s, %s, %s)
+                    """, (training_id, athlete_id, is_present))
+
+                # Подтверждение изменений
+                connection.commit()
                 QMessageBox.information(self, "Успех", "Тренировка успешно добавлена!")
                 self.go_back()
 
@@ -443,6 +515,9 @@ class CreateTrainingWindow(QWidget):
         """Возврат к родительскому окну."""
         self.close()
         self.parent_window.show()
+
+
+
 
 class CreateCompetitionWindow(QWidget):
     def __init__(self, parent_window):
