@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 import mysql.connector
 import matplotlib.pyplot as plt
-
+from change_buttons import get_database_connection  # Импортируем функцию подключения
 
 class ReportWindow(QWidget):
     def __init__(self, parent):
@@ -24,7 +24,7 @@ class ReportWindow(QWidget):
         self.report_text_area = QTextEdit()
         self.report_text_area.setReadOnly(True)
         self.report_text_area.setFixedWidth(400)  # Фиксируем ширину текста
-        self.report_text_area.setStyleSheet("""
+        self.report_text_area.setStyleSheet(""" 
             font-size: 14px;
             padding: 2px;
             background-color: #505050;  /* Светло-серый фон */
@@ -36,25 +36,48 @@ class ReportWindow(QWidget):
         self.generate_reports()
 
     def generate_reports(self):
-        connection = mysql.connector.connect(
-            host="mysql-ownosh.alwaysdata.net",
-            user="ownosh",
-            password="S~0U;G~1z(f",
-            database="ownosh_sport_system"
-        )
+        connection = get_database_connection()  # Используем уже существующее подключение
         cursor = connection.cursor()
 
-        # Общее количество спортсменов
-        cursor.execute("SELECT COUNT(*) FROM sportsmen")
+        # Общее количество спортсменов и тренеров
+        cursor.execute("SELECT COUNT(*) FROM users WHERE role='sportsman'")
         total_athletes = cursor.fetchone()[0]
 
-        # Количество активных спортсменов
-        cursor.execute("SELECT COUNT(*) FROM sportsmen WHERE active=1")
+        # Количество активных спортсменов (проверяем активность через users и роль)
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM users
+            JOIN sportsmen ON users.user_id = sportsmen.user_id
+            WHERE users.active = 1 AND users.role = 'sportsman'
+        """)
         active_athletes = cursor.fetchone()[0]
 
         # Количество неактивных спортсменов
-        cursor.execute("SELECT COUNT(*) FROM sportsmen WHERE active=0")
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM users
+            JOIN sportsmen ON users.user_id = sportsmen.user_id
+            WHERE users.active = 0 AND users.role = 'sportsman'
+        """)
         inactive_athletes = cursor.fetchone()[0]
+
+        # Количество активных тренеров (проверяем активность через users и роль)
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM users
+            JOIN trainers ON users.user_id = trainers.user_id
+            WHERE users.active = 1 AND users.role = 'trainer'
+        """)
+        active_trainers = cursor.fetchone()[0]
+
+        # Количество неактивных тренеров
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM users
+            JOIN trainers ON users.user_id = trainers.user_id
+            WHERE users.active = 0 AND users.role = 'trainer'
+        """)
+        inactive_trainers = cursor.fetchone()[0]
 
         # Количество спортсменов, которые участвовали в соревнованиях
         cursor.execute("""
@@ -88,10 +111,13 @@ class ReportWindow(QWidget):
         """)
         missed_trainings = cursor.fetchone()[0]
 
+        # Формируем текст отчета
         report_text = (
             f"Общее количество спортсменов: {total_athletes}\n"
-            f"Постоянные/пришедшие: {active_athletes}\n"
-            f"Давно не было/ушли: {inactive_athletes}\n"
+            f"Постоянные/пришедшие спортсмены: {active_athletes}\n"
+            f"Давно не было/ушедшие спортсмены: {inactive_athletes}\n"
+            f"Активные тренеры: {active_trainers}\n"
+            f"Неактивные тренеры: {inactive_trainers}\n"
             f"Спортсмены, участвовавшие в соревнованиях: {participated_competitions}\n"
             f"Спортсмены, пропустившие соревнования: {absent_competitions}\n"
             f"Спортсмены, присутствовавшие на тренировках: {attended_trainings}\n"
@@ -100,19 +126,21 @@ class ReportWindow(QWidget):
         self.report_text_area.setText(report_text)
 
         labels = [
-            'Постоянники/пришедшие', 'Давно не было/ушли', 'Участвовали в соревнованиях',
-            'Пропустили соревнования', 'Присутствовали на тренировках', 'Пропустили тренировки'
+            'Постоянники/пришедшие спортсмены', 'Давно не было/ушли спортсмены',
+            'Активные тренеры', 'Неактивные тренеры',
+            'Участвовали в соревнованиях', 'Пропустили соревнования',
+            'Присутствовали на тренировках', 'Пропустили тренировки'
         ]
         values = [
-            active_athletes, inactive_athletes, participated_competitions,
-            absent_competitions, attended_trainings, missed_trainings
+            active_athletes, inactive_athletes, active_trainers, inactive_trainers,
+            participated_competitions, absent_competitions, attended_trainings, missed_trainings
         ]
 
         # Создание диаграммы с высоким разрешением
         plt.figure(figsize=(5, 4), dpi=100)  # DPI увеличен для улучшения качества
         plt.barh(labels, values, color='grey')
         plt.xlabel('Количество')
-        plt.title('Отчет по спортсменам')
+        plt.title('Отчет по спортсменам и тренерам')
         plt.tight_layout()
 
         plt.savefig('report_chart.png', dpi=200)  # Сохраняем в высоком разрешении
@@ -129,3 +157,5 @@ class ReportWindow(QWidget):
 
         cursor.close()
         connection.close()
+
+

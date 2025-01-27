@@ -80,7 +80,7 @@ class AdminWindow(QWidget):
         if not button.isEnabled():
             return
         button.setEnabled(False)
-        QTimer.singleShot(5000, lambda: button.setEnabled(True))  # Блокируем кнопку на 10 секунд
+        QTimer.singleShot(7000, lambda: button.setEnabled(True))  # Блокируем кнопку на 10 секунд
         handler()
 
     def open_window(self, window_class, *args, **kwargs):

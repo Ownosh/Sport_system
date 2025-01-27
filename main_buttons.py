@@ -348,23 +348,45 @@ class UserWindow(BaseWindow):
 class TrainingWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
-        column_labels = ["ID Тренировки", "Название тренировки", "Название группы", "Дата", "Место проведения"]  # Изменили название столбца
+        column_labels = ["ID Тренировки", "Название тренировки", "Название группы", "Дата", "Место проведения"]
         super().__init__(parent_window, "Журнал тренировок", "Тренировки", column_labels, button_labels)
+
         self.add_button.clicked.connect(self.add_training)
         self.edit_button.clicked.connect(self.edit_training)
         self.delete_button.clicked.connect(self.delete_training)
-        
-        # Обновляем запрос для получения названия группы
+
+        # Загружаем данные
         self.load_data("""
             SELECT t.training_id, t.name_training, g.name, t.date, t.location 
             FROM trainings t
             JOIN groups g ON t.group_id = g.group_id
         """, ["training_id", "name_training", "name", "date", "location"])
 
-    def add_training(self): 
+    def add_training(self):
+        # Открытие окна добавления тренировки
         self.create_user_window = CreateTrainingWindow(self)
-        self.create_user_window.show()
+
+        # Скрываем текущее окно, чтобы не перекрывать
         self.hide()
+
+        # Показать окно добавления тренировки
+        self.create_user_window.show()
+
+        # После того как окно добавления тренировки закроется, обновляем список
+        self.create_user_window.finished.connect(self.refresh_training_list)
+
+    def refresh_training_list(self):
+        """Обновление списка тренировок."""
+        # Обновляем данные в таблице с тренировками
+        self.load_data("""
+            SELECT t.training_id, t.name_training, g.name, t.date, t.location 
+            FROM trainings t
+            JOIN groups g ON t.group_id = g.group_id
+        """, ["training_id", "name_training", "name", "date", "location"])
+
+        # Показываем снова текущее окно с обновленным списком
+        self.show()  # Показываем главное окно снова
+
 
         
     def edit_training(self):

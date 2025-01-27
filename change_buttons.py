@@ -2,9 +2,9 @@ import mysql.connector
 from PyQt6.QtWidgets import QWidget,QDialog,QFormLayout,QFileDialog,QTextEdit, QHBoxLayout, QVBoxLayout,QCheckBox,QTableWidgetItem, QDateTimeEdit,QTableWidget,QHeaderView,QHBoxLayout, QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QMessageBox
 from PyQt6.QtCore import Qt
 import os
-from datetime import datetime
 from PyQt6.QtCore import QDateTime,QDate
 from PyQt6.QtGui import QPixmap
+from datetime import datetime, date 
 
 
 
@@ -21,8 +21,7 @@ def get_database_connection():
     except mysql.connector.Error as e: QMessageBox.critical(None, "Ошибка подключения", f"Ошибка при подключении к базе данных: {e}")
 
 
-
-class CreateUserWindow(QWidget): 
+class CreateUserWindow(QWidget):
     def __init__(self, parent_window):
         super().__init__()
         self.parent_window = parent_window
@@ -144,7 +143,7 @@ class CreateUserWindow(QWidget):
             QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля.")
             return
 
-        # Преобразование даты в формат базы данных (ГГГГ-МИ-ММ)
+        # Преобразование даты для спортсмена и тренера в формат ГГГГ-ММ-ДД
         if dob:
             try:
                 dob = datetime.strptime(dob, "%d.%m.%Y").strftime("%Y-%m-%d")
@@ -168,7 +167,7 @@ class CreateUserWindow(QWidget):
             cursor.execute(insert_user_query, (username, password, email, phone, role))
             user_id = cursor.lastrowid
 
-            # Добавлен gender при создании пользователя
+            # Добавляем в зависимости от роли
             if role == "Sportsman":
                 insert_sportsman_query = """
                 INSERT INTO sportsmen (user_id, first_name, last_name, patronymic, birthdate, city, typesport, gender)
@@ -182,6 +181,7 @@ class CreateUserWindow(QWidget):
                 """
                 cursor.execute(insert_trainer_query, (user_id, first_name, last_name, middle_name, dob, city, sport_type))
 
+            # Если была добавлена фотография
             if hasattr(self, 'photo_file'):
                 with open(self.photo_file, "rb") as file:
                     photo_data = file.read()
@@ -203,6 +203,8 @@ class CreateUserWindow(QWidget):
     def go_back(self):
         self.close()
         self.parent_window.show()
+
+
 
 
 
@@ -315,63 +317,80 @@ class CreateRewardWindow(QWidget):
         self.parent_window.show()  # Показать родительское окно
 
 
-class CreateTrainingWindow(QWidget):
+
+
+class CreateTrainingWindow(QDialog):
     def __init__(self, parent_window):
         super().__init__()
         self.parent_window = parent_window
         self.setWindowTitle("Создание тренировки")
-        self.setGeometry(350, 150, 800, 600)  # Увеличил размер окна для отображения таблицы
+        self.setGeometry(350, 150, 800, 400)  # Размер окна
 
         self.setup_ui()
         self.load_data_from_db()
 
     def setup_ui(self):
-        """Создание пользовательского интерфейса."""
-        main_layout = QVBoxLayout()
-        form_layout = QFormLayout()
+        main_layout = QHBoxLayout()  # Основной горизонтальный layout
 
-        # Поля для ввода данных
+        form_layout = QVBoxLayout()
+
+        # Название тренировки
+        self.name_label = QLabel("Название тренировки:")
         self.name_input = QLineEdit()
+        form_layout.addWidget(self.name_label)
+        form_layout.addWidget(self.name_input)
+
+        # Дата и время тренировки
+        self.datetime_label = QLabel("Дата и время:")
         self.datetime_input = QDateTimeEdit(QDateTime.currentDateTime())
         self.datetime_input.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        self.group_input = QComboBox()
+        form_layout.addWidget(self.datetime_label)
+        form_layout.addWidget(self.datetime_input)
+
+        # Тренер
+        self.coach_label = QLabel("Тренер:")
         self.coach_input = QComboBox()
+        form_layout.addWidget(self.coach_label)
+        form_layout.addWidget(self.coach_input)
+
+        # Группа
+        self.group_label = QLabel("Группа:")
+        self.group_input = QComboBox()
+        self.group_input.currentIndexChanged.connect(self.load_athletes_for_selected_group)
+        form_layout.addWidget(self.group_label)
+        form_layout.addWidget(self.group_input)
+
+        # Местоположение
+        self.location_label = QLabel("Место проведения:")
         self.location_input = QLineEdit()
-        self.location_input.setText("Спортзал 1")
+        form_layout.addWidget(self.location_label)
+        form_layout.addWidget(self.location_input)
 
-        # Добавление полей в форму
-        form_layout.addRow("Название тренировки:", self.name_input)
-        form_layout.addRow("Дата и время:", self.datetime_input)
-        form_layout.addRow("Группа:", self.group_input)
-        form_layout.addRow("Тренер:", self.coach_input)
-        form_layout.addRow("Место проведения:", self.location_input)
-
-        main_layout.addLayout(form_layout)
-
-        # Таблица для отображения спортсменов
-        self.athletes_table = QTableWidget()
-        self.athletes_table.setRowCount(0)
-        self.athletes_table.setColumnCount(2)
-        self.athletes_table.setHorizontalHeaderLabels(["Спортсмен", "Присутствует"])
-        self.athletes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        main_layout.addWidget(self.athletes_table)
-
-        # Кнопки управления
+        # Кнопки
         buttons_layout = QHBoxLayout()
         self.add_button = QPushButton("Добавить тренировку")
         self.back_button = QPushButton("Назад")
         buttons_layout.addWidget(self.add_button)
         buttons_layout.addWidget(self.back_button)
+        form_layout.addLayout(buttons_layout)
 
-        main_layout.addLayout(buttons_layout)
+        main_layout.addLayout(form_layout)  # Левый блок (форма)
+
+        # Таблица спортсменов (правый блок)
+        self.athletes_table = QTableWidget()
+        self.athletes_table.setRowCount(0)
+        self.athletes_table.setColumnCount(2)
+        self.athletes_table.setHorizontalHeaderLabels(["Спортсмен", "Присутствует"])
+        self.athletes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+        main_layout.addWidget(self.athletes_table)  # Добавляем таблицу спортсменов справа
+
+        # Устанавливаем layout в окно
         self.setLayout(main_layout)
 
-        # Подключение кнопок к методам
+        # Подключаем кнопки к методам
         self.add_button.clicked.connect(self.add_training)
         self.back_button.clicked.connect(self.go_back)
-
-        # Подключаем изменение выбранной группы для загрузки спортсменов
-        self.group_input.currentIndexChanged.connect(self.load_athletes_for_selected_group)
 
     def load_data_from_db(self):
         """Загрузка данных из базы данных."""
@@ -398,40 +417,28 @@ class CreateTrainingWindow(QWidget):
     def load_athletes_for_selected_group(self):
         """Загрузка спортсменов для выбранной группы."""
         group_name = self.group_input.currentText()
-
-        if not group_name:
-            return
-
-        connection = get_database_connection()  # Используем вашу функцию для подключения
+        connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
             try:
-                # Получаем group_id для выбранной группы
+                # Получаем id выбранной группы
                 cursor.execute("SELECT group_id FROM groups WHERE name = %s", (group_name,))
-                group = cursor.fetchone()
-
-                if not group:
-                    QMessageBox.warning(self, "Ошибка", "Группа не найдена.")
-                    return
-
-                group_id = group[0]
-
-                # Загрузка спортсменов, которые принадлежат к выбранной группе
-                cursor.execute("""
-                    SELECT s.sportsman_id, s.last_name
-                    FROM sportsmen s
-                    JOIN sportsman_group sg ON s.sportsman_id = sg.sportsman_id
-                    WHERE sg.group_id = %s
-                """, (group_id,))
-
-                sportsmen = cursor.fetchall()
-                self.athletes_table.setRowCount(len(sportsmen))
-                for row, athlete in enumerate(sportsmen):
-                    name_item = QTableWidgetItem(athlete[1])  # Фамилия спортсмена
-                    presence_checkbox = QCheckBox()  # Чекбокс для присутствия
-                    self.athletes_table.setItem(row, 0, name_item)
-                    self.athletes_table.setCellWidget(row, 1, presence_checkbox)
-
+                group_id = cursor.fetchone()
+                if group_id:
+                    # Загрузка спортсменов в выбранной группе
+                    cursor.execute("""
+                        SELECT s.sportsman_id, s.last_name
+                        FROM sportsmen s
+                        JOIN sportsman_group sg ON s.sportsman_id = sg.sportsman_id
+                        WHERE sg.group_id = %s
+                    """, (group_id[0],))
+                    sportsmen = cursor.fetchall()
+                    self.athletes_table.setRowCount(len(sportsmen))
+                    for row, athlete in enumerate(sportsmen):
+                        name_item = QTableWidgetItem(athlete[1])
+                        presence_checkbox = QCheckBox()
+                        self.athletes_table.setItem(row, 0, name_item)
+                        self.athletes_table.setCellWidget(row, 1, presence_checkbox)
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке спортсменов: {e}")
             finally:
@@ -440,7 +447,6 @@ class CreateTrainingWindow(QWidget):
 
     def add_training(self):
         """Добавление тренировки в базу данных."""
-        # Получение данных из полей
         training_name = self.name_input.text().strip()
         training_datetime = self.datetime_input.dateTime().toString("yyyy-MM-dd HH:mm:ss")
         group_name = self.group_input.currentText()
@@ -452,7 +458,7 @@ class CreateTrainingWindow(QWidget):
             QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены.")
             return
 
-        connection = get_database_connection()  # Используем вашу функцию для подключения
+        connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
             try:
@@ -494,16 +500,15 @@ class CreateTrainingWindow(QWidget):
                         presence_data.append((training_id, athlete_id, is_present))
 
                 for training_id, athlete_id, is_present in presence_data:
-                    cursor.execute(""" 
-                        INSERT INTO training_attendance (training_id, athlete_id, is_present)
-                        VALUES (%s, %s, %s)
-                    """, (training_id, athlete_id, is_present))
+                    cursor.execute("""INSERT INTO training_attendance (training_id, athlete_id, is_present)
+                                      VALUES (%s, %s, %s)""", (training_id, athlete_id, is_present))
 
-                # Подтверждение изменений
                 connection.commit()
-                QMessageBox.information(self, "Успех", "Тренировка успешно добавлена!")
-                self.go_back()
 
+                # Закрытие текущего окна и обновление родительского окна с новым списком тренировок
+                self.parent_window.load_trainings_data()  # Обновляем список тренировок в родительском окне
+                self.close()  # Закрываем окно создания тренировки
+                QMessageBox.information(self, "Успех", "Тренировка успешно добавлена!")
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при добавлении тренировки: {e}")
                 connection.rollback()
@@ -1292,6 +1297,8 @@ class EditCompetitionWindow(QDialog):
     def go_back(self):
         self.close()
         
+
+
 class EditUserWindow(QWidget):
     def __init__(self, parent_window, user_id):
         super().__init__()
@@ -1390,6 +1397,9 @@ class EditUserWindow(QWidget):
         # Загружаем данные пользователя
         self.load_user_data()
 
+
+
+
     def load_user_data(self):
         connection = get_database_connection()
         if connection:
@@ -1401,13 +1411,15 @@ class EditUserWindow(QWidget):
                     WHERE user_id = %s
                 """, (self.user_id,))
                 user_data = cursor.fetchone()
+
                 if user_data:
+                    # Заполняем основные поля
                     self.username_input.setText(user_data[0])
                     self.password_input.setText(user_data[1])
                     self.email_input.setText(user_data[2])
                     self.phone_input.setText(user_data[3])
 
-                    # Загрузка фото
+                    # Загружаем фото
                     if user_data[4].lower() == "sportsman":
                         cursor.execute("""
                             SELECT photo
@@ -1440,10 +1452,22 @@ class EditUserWindow(QWidget):
                             self.last_name_input.setText(sportsman_data[1])
                             self.middle_name_input.setText(sportsman_data[2] if sportsman_data[2] else "")
                             dob = sportsman_data[3]
-                            if dob == "0000-00-00":
-                                self.dob_input.setText("")
-                            else:
-                                self.dob_input.setText(dob.strftime("%d.%m.%Y"))
+
+                            # Преобразуем дату рождения в нужный формат
+                            if isinstance(dob, datetime):
+                                # Если dob - это объект datetime, форматируем его
+                                dob = dob.strftime("%d.%m.%Y")
+                            elif isinstance(dob, str):
+                                # Если dob - строка, проверяем и преобразуем
+                                try:
+                                    dob = datetime.strptime(dob, "%Y-%m-%d").strftime("%d.%m.%Y")
+                                except ValueError:
+                                    dob = None
+                            elif isinstance(dob, date):
+                                # Если dob - это объект datetime.date, преобразуем его в строку
+                                dob = dob.strftime("%d.%m.%Y")
+                            self.dob_input.setText(dob if dob else "")
+
                             self.city_input.setText(sportsman_data[4] if sportsman_data[4] else "")
                             self.sport_type_input.setText(sportsman_data[5] if sportsman_data[5] else "")
                             self.gender_input.setCurrentText(sportsman_data[6] if sportsman_data[6] else "male")
@@ -1459,10 +1483,22 @@ class EditUserWindow(QWidget):
                             self.last_name_input.setText(trainer_data[1])
                             self.middle_name_input.setText(trainer_data[2] if trainer_data[2] else "")
                             dob = trainer_data[3]
-                            if dob == "0000-00-00":
-                                self.dob_input.setText("")
-                            else:
-                                self.dob_input.setText(dob.strftime("%d.%m.%Y"))
+
+                            # Преобразуем дату рождения в нужный формат
+                            if isinstance(dob, datetime):
+                                # Если dob - это объект datetime, форматируем его
+                                dob = dob.strftime("%d.%m.%Y")
+                            elif isinstance(dob, str):
+                                # Если dob - строка, проверяем и преобразуем
+                                try:
+                                    dob = datetime.strptime(dob, "%Y-%m-%d").strftime("%d.%m.%Y")
+                                except ValueError:
+                                    dob = None
+                            elif isinstance(dob, date):
+                                # Если dob - это объект datetime.date, преобразуем его в строку
+                                dob = dob.strftime("%d.%m.%Y")
+                            self.dob_input.setText(dob if dob else "")
+
                             self.city_input.setText(trainer_data[4] if trainer_data[4] else "")
                             self.sport_type_input.setText(trainer_data[5] if trainer_data[5] else "")
                 else:
@@ -1474,12 +1510,8 @@ class EditUserWindow(QWidget):
                 cursor.close()
                 connection.close()
 
-    def add_photo(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Выберите изображение", "", "Изображения (*.png *.jpg *.jpeg)")
-        if file_name:
-            pixmap = QPixmap(file_name)
-            self.photo_label.setPixmap(pixmap.scaled(400, 300, Qt.AspectRatioMode.KeepAspectRatio))
-            self.photo_file = file_name
+
+
 
     def submit_form(self):
         username = self.username_input.text().strip()
@@ -1500,7 +1532,8 @@ class EditUserWindow(QWidget):
 
         try:
             if dob:
-                datetime.strptime(dob, "%d.%m.%Y")
+                # Преобразуем из формата "день.месяц.год" в "год-месяц-день"
+                dob = datetime.strptime(dob, "%d.%m.%Y").strftime("%Y-%m-%d")
             else:
                 dob = None
         except ValueError:
@@ -1519,16 +1552,32 @@ class EditUserWindow(QWidget):
                 WHERE user_id = %s
             """, (username, password, email, phone, self.user_id))
 
-            cursor.execute("""
-                UPDATE sportsmen
-                SET first_name = %s, last_name = %s, patronymic = %s, birthdate = %s, city = %s, typesport = %s, gender = %s
-                WHERE user_id = %s
-            """, (first_name, last_name, middle_name, dob if dob else None, city, sport_type, gender, self.user_id))
+            cursor.execute("SELECT role FROM users WHERE user_id = %s", (self.user_id,))
+            role = cursor.fetchone()[0].lower()
 
-            if hasattr(self, 'photo_file'):
-                with open(self.photo_file, "rb") as file:
-                    photo_data = file.read()
-                cursor.execute("UPDATE sportsmen SET photo = %s WHERE user_id = %s", (photo_data, self.user_id))
+            if role == "sportsman":
+                cursor.execute("""
+                    UPDATE sportsmen
+                    SET first_name = %s, last_name = %s, patronymic = %s, birthdate = %s, city = %s, typesport = %s, gender = %s
+                    WHERE user_id = %s
+                """, (first_name, last_name, middle_name, dob if dob else None, city, sport_type, gender, self.user_id))
+
+                if hasattr(self, 'photo_file'):
+                    with open(self.photo_file, "rb") as file:
+                        photo_data = file.read()
+                    cursor.execute("UPDATE sportsmen SET photo = %s WHERE user_id = %s", (photo_data, self.user_id))
+
+            elif role == "trainer":
+                cursor.execute("""
+                    UPDATE trainers
+                    SET first_name = %s, last_name = %s, patronymic = %s, birthdate = %s, city = %s, specialty = %s
+                    WHERE user_id = %s
+                """, (first_name, last_name, middle_name, dob if dob else None, city, sport_type, self.user_id))
+
+                if hasattr(self, 'photo_file'):
+                    with open(self.photo_file, "rb") as file:
+                        photo_data = file.read()
+                    cursor.execute("UPDATE trainers SET photo = %s WHERE user_id = %s", (photo_data, self.user_id))
 
             connection.commit()
             QMessageBox.information(self, "Успех", "Данные пользователя успешно обновлены.")
@@ -1541,6 +1590,16 @@ class EditUserWindow(QWidget):
         finally:
             cursor.close()
             connection.close()
+
+
+    def add_photo(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Выберите изображение", "", "Изображения (*.png *.jpg *.jpeg)")
+        if file_name:
+            pixmap = QPixmap(file_name)
+            self.photo_label.setPixmap(pixmap.scaled(400, 300, Qt.AspectRatioMode.KeepAspectRatio))
+            self.photo_file = file_name
+
+
 
     def go_back(self):
         self.close()

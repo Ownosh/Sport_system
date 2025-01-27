@@ -26,8 +26,8 @@ class SportsmenWindow(QWidget):
         self.table_label = QLabel("Список спортсменов")
         self.table = QTableWidget()
         column_labels = [
-            "ID Спортсмена", "Фамилия", 
-            "Дата Рождения", "Пол", "Тип спорта"
+            "ID Спортсмена", "Имя", 
+            "Фамилия", "Тип спорта"
         ]
         self.table.setColumnCount(len(column_labels))
         self.table.setHorizontalHeaderLabels(column_labels)
@@ -102,8 +102,8 @@ class SportsmenWindow(QWidget):
 
     def load_data(self):
         query = (
-            "SELECT sportsman_id, last_name, "
-            "birthdate, gender, typesport FROM sportsmen"
+            "SELECT sportsman_id, first_name,"
+            "last_name, typesport FROM sportsmen"
         )
         db = get_database_connection()
         if not db:
@@ -146,59 +146,125 @@ class ProfileDialog(QDialog):
     def __init__(self, parent, sportsman_id):
         super().__init__(parent)
         self.setWindowTitle("Профиль спортсмена")
-        self.setGeometry(400, 200, 400, 400)
+        self.setGeometry(400, 200, 700, 300) # Adjusted size for better layout
 
+        # Фото спортсмена
         self.image_label = QLabel()
-        self.image_label.setFixedSize(150, 150)
-        self.image_label.setStyleSheet("border: 1px solid black;")
+        self.image_label.setFixedSize(400, 300)
+        self.image_label.setStyleSheet("border: 1px;border-radius: 5px; background-color: #707070;")
 
-        self.layout = QHBoxLayout()
-        self.profile_layout = QVBoxLayout()
-        self.profile_label = QLabel(f"Профиль спортсмена с ID: {sportsman_id}")
-        self.profile_layout.addWidget(self.profile_label)
+        # Информация профиля
+        self.profile_label = QLabel()
+        self.profile_label.setStyleSheet("""
+            QLabel {
+                font-size: 14px;
+                color: #ffffff;
+                background-color: #707070;
+                padding: 10px;
+                border-radius: 5px;
+            }
+        """)
+        self.profile_label.setWordWrap(True)  # To ensure text wraps when it's long
 
+        # Кнопка OK
+        self.ok_button = QPushButton("OK")
+        self.ok_button.setStyleSheet("""
+            QLabel {
+                font-size: 14px;
+            }
+            QLineEdit, QTextEdit {
+                font-size: 14px;
+                padding: 5px;
+            }
+            QTextEdit {
+                min-height: 80px; /* Minimum height for multi-line text field */
+            }
+            QPushButton {
+                background-color: #707070;
+                color: white;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+        """)
+        self.ok_button.setFixedHeight(40)
+        self.ok_button.clicked.connect(self.accept)
+
+        # Компоновка
+        profile_layout = QVBoxLayout()
+        profile_layout.addWidget(self.profile_label)
+        profile_layout.addStretch()
+        profile_layout.addWidget(self.ok_button)
+
+        layout = QHBoxLayout()
+        layout.addLayout(profile_layout)
+        layout.addWidget(self.image_label, alignment=Qt.AlignmentFlag.AlignTop)
+
+        self.setLayout(layout)
+
+        # Загрузка данных профиля
         self.load_profile_data(sportsman_id)
-
-        self.profile_layout.addStretch()
-        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
-        self.button_box.accepted.connect(self.accept)
-        
-        self.profile_layout.addWidget(self.button_box)
-        self.layout.addLayout(self.profile_layout)
-        self.layout.addWidget(self.image_label, alignment=Qt.AlignmentFlag.AlignTop)
-
-        self.setLayout(self.layout)
 
     def load_profile_data(self, sportsman_id):
         connection = get_database_connection()
-        if connection:
-            cursor = connection.cursor()
-            try:
-                cursor.execute("SELECT first_name, last_name, patronymic, birthdate, gender, city, typesport, photo FROM sportsmen WHERE sportsman_id = %s", (sportsman_id,))
-                profile = cursor.fetchone()
-                if profile:
-                    profile_data = f"""
-                    <b>Имя:</b> {profile[0]}<br>
-                    <b>Фамилия:</b> {profile[1]}<br>
-                    <b>Отчество:</b> {profile[2]}<br>
-                    <b>Дата рождения:</b> {profile[3]}<br>
-                    <b>Пол:</b> {profile[4]}<br>
-                    <b>Город:</b> {profile[5]}<br>
-                    <b>Вид спорта:</b> {profile[6]}
-                    """
-                    self.profile_label.setText(profile_data)
-                    if profile[7]:
-                        pixmap = QPixmap()
-                        pixmap.loadFromData(profile[7])
-                        self.image_label.setPixmap(pixmap.scaled(self.image_label.size(), Qt.AspectRatioMode.KeepAspectRatio))
+        if not connection:
+            QMessageBox.critical(self, "Ошибка", "Не удалось подключиться к базе данных.")
+            self.reject()
+            return
+
+        cursor = connection.cursor(dictionary=True)
+        try:
+            query = """
+                SELECT 
+                    sportsman_id, user_id, first_name, last_name, patronymic, city, 
+                    DATE_FORMAT(birthdate, '%d-%m-%Y') AS formatted_birthdate, 
+                    gender, typesport, photo 
+                FROM sportsmen 
+                WHERE sportsman_id = %s
+            """
+            cursor.execute(query, (sportsman_id,))
+            profile = cursor.fetchone()
+
+            if profile:
+                # Форматирование профиля
+                profile_data = f"""
+                    <b>ID спортсмена:</b> {profile['sportsman_id']}<br>
+                    <b>ID пользователя:</b> {profile['user_id']}<br>
+                    <b>Имя:</b> {profile['first_name']}<br>
+                    <b>Фамилия:</b> {profile['last_name']}<br>
+                    <b>Отчество:</b> {profile['patronymic']}<br>
+                    <b>Город:</b> {profile['city']}<br>
+                    <b>Дата рождения:</b> {profile['formatted_birthdate']}<br>
+                    <b>Пол:</b> {profile['gender']}<br>
+                    <b>Вид спорта:</b> {profile['typesport']}
+                """
+                self.profile_label.setText(profile_data)
+
+                # Загрузка фото
+                if profile['photo']:
+                    pixmap = QPixmap()
+                    pixmap.loadFromData(profile['photo'])
+                    self.image_label.setPixmap(
+                        pixmap.scaled(
+                            self.image_label.size(),
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation
+                        )
+                    )
                 else:
-                    QMessageBox.warning(self, "Ошибка", "Профиль спортсмена не найден")
-                    self.reject()
-            except mysql.connector.Error as e:
-                QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке профиля спортсмена: {e}")
-            finally:
-                cursor.close()
-                connection.close()
+                    self.image_label.setText("Фото отсутствует")
+            else:
+                QMessageBox.warning(self, "Ошибка", f"Профиль спортсмена с ID {sportsman_id} не найден.")
+                self.reject()
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при выполнении запроса: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+
 
 class InjuryDialog(QDialog):
     def __init__(self, parent, sportsman_id=None, injury_id=None):
