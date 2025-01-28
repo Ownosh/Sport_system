@@ -573,10 +573,33 @@ class CreateCompetitionWindow(QWidget):
         self.parent_window = parent_window
         self.setWindowTitle("Создание соревнования")
         self.setGeometry(350, 150, 800, 400)
-        
+
+        # Установка стилей
+        self.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+            }
+            QLineEdit, QTextEdit {
+                font-size: 12px;
+                padding: 5px;
+            }
+            QTextEdit {
+                min-height: 80px; /* Минимальная высота для многострочного поля */
+            }
+            QPushButton {
+                background-color: #707070;
+                color: white;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+        """)
+
         self.setup_ui()
         self.load_data_from_db()
-        self.apply_styles()
 
     def setup_ui(self):
         main_layout = QHBoxLayout()
@@ -626,7 +649,7 @@ class CreateCompetitionWindow(QWidget):
         self.athletes_table.setColumnCount(2)
         self.athletes_table.setHorizontalHeaderLabels(["Спортсмен", "Отметить участников"])
         self.athletes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        
+
         main_layout.addWidget(self.athletes_table)
 
         self.setLayout(main_layout)
@@ -635,7 +658,6 @@ class CreateCompetitionWindow(QWidget):
         self.back_button.clicked.connect(self.go_back)
 
     def get_default_location(self):
-        # Получаем местоположение по умолчанию. Здесь можно добавить логику для определения местоположения.
         return "Стадион 1"  # Пример
 
     def load_data_from_db(self):
@@ -651,9 +673,7 @@ class CreateCompetitionWindow(QWidget):
                     WHERE u.active = 1
                 """)
                 trainers = cursor.fetchall()
-                for trainer in trainers:
-                    # Добавляем фамилию и ID тренера в QComboBox
-                    self.coach_input.addItem(f"{trainer[1]} (ID: {trainer[0]})", trainer[0])
+                self.coach_input.addItems([f"{row[1]} (ID: {row[0]})" for row in trainers])
 
                 # Загружаем активных спортсменов
                 cursor.execute("""
@@ -679,56 +699,43 @@ class CreateCompetitionWindow(QWidget):
     def add_competition(self):
         competition_name = self.name_input.text()
         competition_datetime = self.datetime_input.dateTime().toString("yyyy-MM-dd HH:mm:ss")
-        coach_name = self.coach_input.currentText()
+        coach_data = self.coach_input.currentText()
+        coach_id = coach_data.split("(ID: ")[1].strip(")")
         location = self.location_input.text()
-
-        # Валидация данных
-        if not competition_name or not coach_name or not location:
-            QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены!")
-            return
 
         connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
             try:
-                # Получение идентификатора тренера
-                cursor.execute("SELECT trainer_id FROM trainers WHERE last_name = %s", (coach_name,))
-                trainer = cursor.fetchone()
-                if trainer:
-                    trainer_id = trainer[0]
-                    
-                    cursor.execute("""
-                        INSERT INTO competitions (name, date, trainer, location)
-                        VALUES (%s, %s, %s, %s)
-                    """, (competition_name, competition_datetime, trainer_id, location))
-                    competition_id = cursor.lastrowid
+                cursor.execute("""
+                    INSERT INTO competitions (name, date, trainer, location)
+                    VALUES (%s, %s, %s, %s)
+                """, (competition_name, competition_datetime, coach_id, location))
+                competition_id = cursor.lastrowid
 
-                    presence_data = []
-                    for row in range(self.athletes_table.rowCount()):
-                        athlete_name = self.athletes_table.item(row, 0).text()
-                        is_present = self.athletes_table.cellWidget(row, 1).isChecked()
-                        cursor.execute("""
-                            SELECT sportsman_id FROM sportsmen WHERE last_name = %s
-                        """, (athlete_name,))
-                        athlete = cursor.fetchone()
-                        if athlete:
-                            athlete_id = athlete[0]
-                            presence_data.append((competition_id, athlete_id, is_present))
-                    
-                    for competition_id, athlete_id, is_present in presence_data:
-                        cursor.execute("""
-                            INSERT INTO competition_attendance (competition_id, athlete_id, is_present)
-                            VALUES (%s, %s, %s)
-                        """, (competition_id, athlete_id, is_present))
-                    
-                    connection.commit() # Обновляем таблицу с соревнованиями
-                    QMessageBox.information(self, "Успех", "Соревнование успешно добавлено!")
-                    self.parent_window.load_data("SELECT competition_id, name, DATE_FORMAT(date, '%H:%i-%d-%m-%Y') as formatted_date, trainer, location FROM competitions", 
-               ["competition_id", "name", "formatted_date", "trainer", "location"])
-                    self.close()
-                    self.parent_window.show()
-                else:
-                    QMessageBox.warning(self, "Ошибка", "Тренер не найден в базе данных.")
+                presence_data = []
+                for row in range(self.athletes_table.rowCount()):
+                    athlete_name = self.athletes_table.item(row, 0).text()
+                    is_present = self.athletes_table.cellWidget(row, 1).isChecked()
+                    cursor.execute("""
+                        SELECT sportsman_id FROM sportsmen WHERE last_name = %s
+                    """, (athlete_name,))
+                    athlete = cursor.fetchone()
+                    if athlete:
+                        athlete_id = athlete[0]
+                        presence_data.append((competition_id, athlete_id, is_present))
+
+                for competition_id, athlete_id, is_present in presence_data:
+                    cursor.execute("""
+                        INSERT INTO competition_attendance (competition_id, athlete_id, is_present)
+                        VALUES (%s, %s, %s)
+                    """, (competition_id, athlete_id, is_present))
+
+                connection.commit()
+                QMessageBox.information(self, "Успех", "Соревнование успешно добавлено!")
+                self.parent_window.load_data("SELECT * FROM competitions", ["competition_id", "name", "date", "trainer", "location"])
+                self.close()
+                self.parent_window.show()
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при добавлении соревнования: {e}")
                 connection.rollback()
@@ -738,31 +745,7 @@ class CreateCompetitionWindow(QWidget):
 
     def go_back(self):
         self.close()
-        self.parent_window.show()
 
-    def apply_styles(self):
-        self.setStyleSheet("""
-            QLabel {
-                font-size: 12px;
-            }
-            QLineEdit, QTextEdit {
-                font-size: 12px;
-                padding: 5px;
-            }
-            QTextEdit {
-                min-height: 80px; /* Минимальная высота для многострочного поля */
-            }
-            QPushButton {
-                background-color: #707070;
-                color: white;
-                padding: 10px 15px;
-                border: none;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #505050;
-            }
-        """)
         
         
 
