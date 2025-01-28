@@ -336,12 +336,39 @@ class CreateRewardWindow(QWidget):
         self.close()
         self.parent_window.show()
 
+
 class CreateTrainingWindow(QDialog):
-    def __init__(self, parent_window):
+    def __init__(self, parent_window, config=None, user_role=None):
         super().__init__()
         self.parent_window = parent_window
+        self.config = config  # Новый параметр конфигурации
+        self.user_role = user_role  # Новый параметр роли пользователя
         self.setWindowTitle("Создание тренировки")
         self.setGeometry(350, 150, 800, 400)  # Размер окна
+
+        # Добавление стилизации
+        self.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+            }
+            QLineEdit, QTextEdit {
+                font-size: 12px;
+                padding: 5px;
+            }
+            QTextEdit {
+                min-height: 80px; /* Минимальная высота для многострочного поля */
+            }
+            QPushButton {
+                background-color: #707070;
+                color: white;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+        """)
 
         self.setup_ui()
         self.load_data_from_db()
@@ -423,7 +450,8 @@ class CreateTrainingWindow(QDialog):
                 # Загрузка тренеров
                 cursor.execute("SELECT trainer_id, last_name FROM trainers")
                 trainers = cursor.fetchall()
-                self.coach_input.addItems([trainer[1] for trainer in trainers])
+                for trainer in trainers:
+                    self.coach_input.addItem(f"{trainer[1]} (ID: {trainer[0]})", trainer[0])  # Добавляем ID тренера
 
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при загрузке данных: {e}")
@@ -467,13 +495,16 @@ class CreateTrainingWindow(QDialog):
         training_name = self.name_input.text().strip()
         training_datetime = self.datetime_input.dateTime().toString("yyyy-MM-dd HH:mm:ss")
         group_name = self.group_input.currentText()
-        coach_name = self.coach_input.currentText()
+        coach_name_with_id = self.coach_input.currentText()
         location = self.location_input.text().strip()
 
         # Проверка на заполненность полей
-        if not training_name or not group_name or not coach_name or not location:
+        if not training_name or not group_name or not coach_name_with_id or not location:
             QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены.")
             return
+
+        # Извлечение ID тренера из строки
+        coach_id = self.coach_input.currentData()
 
         connection = get_database_connection()
         if connection:
@@ -487,18 +518,10 @@ class CreateTrainingWindow(QDialog):
                     return
                 group_id = group[0]
 
-                # Получение trainer_id
-                cursor.execute("SELECT trainer_id FROM trainers WHERE last_name = %s", (coach_name,))
-                trainer = cursor.fetchone()
-                if not trainer:
-                    QMessageBox.warning(self, "Ошибка", "Выбранный тренер не найден.")
-                    return
-                trainer_id = trainer[0]
-
                 # Добавление тренировки
                 cursor.execute("""INSERT INTO trainings (name_training, date, trainer, group_id, location)
                                   VALUES (%s, %s, %s, %s, %s)""",
-                               (training_name, training_datetime, trainer_id, group_id, location))
+                               (training_name, training_datetime, coach_id, group_id, location))
                 connection.commit()
 
                 # Получение training_id последней добавленной тренировки
@@ -523,9 +546,11 @@ class CreateTrainingWindow(QDialog):
                 connection.commit()
 
                 # Закрытие текущего окна и обновление родительского окна с новым списком тренировок
-                self.parent_window.load_trainings_data()  # Обновляем список тренировок в родительском окне
-                self.close()  # Закрываем окно создания тренировки
+                self.parent_window.refresh_training_list()  # Используем новый метод родительского класса
+                self.close()
+                self.parent_window.show()# Закрываем окно создания тренировки
                 QMessageBox.information(self, "Успех", "Тренировка успешно добавлена!")
+                
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при добавлении тренировки: {e}")
                 connection.rollback()
@@ -538,6 +563,10 @@ class CreateTrainingWindow(QDialog):
         self.close()
         self.parent_window.show()
 
+
+
+
+
 class CreateCompetitionWindow(QWidget):
     def __init__(self, parent_window):
         super().__init__()
@@ -547,6 +576,7 @@ class CreateCompetitionWindow(QWidget):
         
         self.setup_ui()
         self.load_data_from_db()
+        self.apply_styles()
 
     def setup_ui(self):
         main_layout = QHBoxLayout()
@@ -621,7 +651,9 @@ class CreateCompetitionWindow(QWidget):
                     WHERE u.active = 1
                 """)
                 trainers = cursor.fetchall()
-                self.coach_input.addItems([f"{row[1]}" for row in trainers])
+                for trainer in trainers:
+                    # Добавляем фамилию и ID тренера в QComboBox
+                    self.coach_input.addItem(f"{trainer[1]} (ID: {trainer[0]})", trainer[0])
 
                 # Загружаем активных спортсменов
                 cursor.execute("""
@@ -649,7 +681,12 @@ class CreateCompetitionWindow(QWidget):
         competition_datetime = self.datetime_input.dateTime().toString("yyyy-MM-dd HH:mm:ss")
         coach_name = self.coach_input.currentText()
         location = self.location_input.text()
-        
+
+        # Валидация данных
+        if not competition_name or not coach_name or not location:
+            QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены!")
+            return
+
         connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
@@ -686,7 +723,8 @@ class CreateCompetitionWindow(QWidget):
                     
                     connection.commit() # Обновляем таблицу с соревнованиями
                     QMessageBox.information(self, "Успех", "Соревнование успешно добавлено!")
-                    self.parent_window.load_data("SELECT * FROM competitions", ["competition_id", "name", "date", "trainer", "location"]) 
+                    self.parent_window.load_data("SELECT competition_id, name, DATE_FORMAT(date, '%H:%i-%d-%m-%Y') as formatted_date, trainer, location FROM competitions", 
+               ["competition_id", "name", "formatted_date", "trainer", "location"])
                     self.close()
                     self.parent_window.show()
                 else:
@@ -700,6 +738,32 @@ class CreateCompetitionWindow(QWidget):
 
     def go_back(self):
         self.close()
+        self.parent_window.show()
+
+    def apply_styles(self):
+        self.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+            }
+            QLineEdit, QTextEdit {
+                font-size: 12px;
+                padding: 5px;
+            }
+            QTextEdit {
+                min-height: 80px; /* Минимальная высота для многострочного поля */
+            }
+            QPushButton {
+                background-color: #707070;
+                color: white;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+        """)
+        
         
 
 class EditTrainingWindow(QDialog):
@@ -899,13 +963,16 @@ class EditTrainingWindow(QDialog):
 class EditCompetitionWindow(QDialog):
     def __init__(self, parent_window, competition_id):
         super().__init__()
-        self.parent_window=parent_window
+        self.parent_window = parent_window
         self.competition_id = competition_id
         self.setWindowTitle("Редактирование соревнования")
         self.setGeometry(350, 150, 800, 400)
+        
+        self.setModal(True)
 
         self.setup_ui()
         self.load_data()
+        self.apply_styles()
 
     def setup_ui(self):
         main_layout = QHBoxLayout()
@@ -965,10 +1032,16 @@ class EditCompetitionWindow(QDialog):
                     self.datetime_input.setDateTime(QDateTime.fromString(competition[1].strftime("%Y-%m-%d %H:%M:%S"), "yyyy-MM-dd HH:mm:ss"))
                     self.location_input.setText(competition[3])
 
-                    cursor.execute("SELECT trainer_id, last_name FROM trainers")
+                    cursor.execute("""
+                        SELECT t.trainer_id, t.last_name 
+                        FROM trainers t
+                        JOIN users u ON t.user_id = u.user_id
+                        WHERE u.active = 1
+                    """)
                     trainers = cursor.fetchall()
                     for trainer in trainers:
-                        self.coach_input.addItem(trainer[1], trainer[0])
+                        # Добавляем фамилию и ID тренера в QComboBox
+                        self.coach_input.addItem(f"{trainer[1]} (ID: {trainer[0]})", trainer[0])
                     index = self.coach_input.findData(competition[2])
                     if index != -1:
                         self.coach_input.setCurrentIndex(index)
@@ -990,7 +1063,9 @@ class EditCompetitionWindow(QDialog):
                 cursor.execute("""
                     SELECT s.sportsman_id, s.last_name, ca.is_present
                     FROM sportsmen s
+                    JOIN users u ON s.user_id = u.user_id
                     LEFT JOIN competition_attendance ca ON s.sportsman_id = ca.athlete_id AND ca.competition_id = %s
+                    WHERE u.active = 1
                 """, (self.competition_id,))
                 sportsmen = cursor.fetchall()
                 self.athletes_table.setRowCount(len(sportsmen))
@@ -1005,7 +1080,6 @@ class EditCompetitionWindow(QDialog):
             finally:
                 cursor.close()
                 connection.close()
-
 
     def save_competition(self):
         competition_name = self.name_input.text()
@@ -1045,7 +1119,8 @@ class EditCompetitionWindow(QDialog):
                     """, (competition_id, athlete_id, is_present))
                 
                 connection.commit()
-                self.parent_window.load_data("SELECT * FROM competitions", ["competition_id", "name", "date", "location", "trainer"])
+                self.parent_window.load_data("SELECT competition_id, name, DATE_FORMAT(date, '%H:%i-%d-%m-%Y') as formatted_date, trainer, location FROM competitions", 
+               ["competition_id", "name", "formatted_date", "trainer", "location"])
                 QMessageBox.information(self, "Успех", "Соревнование успешно сохранено!")
                 self.close()
             except mysql.connector.Error as e:
@@ -1057,6 +1132,30 @@ class EditCompetitionWindow(QDialog):
 
     def go_back(self):
         self.close()
+
+    def apply_styles(self):
+        self.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+            }
+            QLineEdit, QTextEdit {
+                font-size: 12px;
+                padding: 5px;
+            }
+            QTextEdit {
+                min-height: 80px; /* Минимальная высота для многострочного поля */
+            }
+            QPushButton {
+                background-color: #707070;
+                color: white;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+        """)
         
 class EditUserWindow(QWidget):
     def __init__(self, parent_window, user_id):
@@ -1092,6 +1191,8 @@ class EditUserWindow(QWidget):
                 font-size: 12px;
             }
         """)
+        
+        self.setModal(True)
 
         # Элементы формы
         self.username_label = QLabel("Логин:")
@@ -1402,6 +1503,8 @@ class EditRewardWindow(QDialog):
 
         self.setWindowTitle("Редактирование награды")
         self.setGeometry(350, 150, 800, 400)
+        
+        self.setModal(True)
 
         self.setup_ui()
         self.load_reward_data()  # Загружаем данные сразу при открытии окна

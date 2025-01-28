@@ -353,6 +353,8 @@ class UserWindow(BaseWindow):
                     cursor.close()
                     connection.close()
 
+
+
 class TrainingWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
@@ -364,40 +366,27 @@ class TrainingWindow(BaseWindow):
         self.delete_button.clicked.connect(self.delete_training)
 
         # Загружаем данные
-        self.load_data("""
-            SELECT t.training_id, t.name_training, g.name, t.date, t.location 
-            FROM trainings t
-            JOIN groups g ON t.group_id = g.group_id
-        """, ["training_id", "name_training", "name", "date", "location"])
-
-    def add_training(self):
-        # Открытие окна добавления тренировки
-        self.create_user_window = CreateTrainingWindow(self)
-
-        # Скрываем текущее окно, чтобы не перекрывать
-        self.hide()
-
-        # Показать окно добавления тренировки
-        self.create_user_window.show()
-
-        # После того как окно добавления тренировки закроется, обновляем список
-        self.create_user_window.finished.connect(self.refresh_training_list)
+        self.refresh_training_list()
 
     def refresh_training_list(self):
         """Обновление списка тренировок."""
-        # Обновляем данные в таблице с тренировками
-        self.load_data("""
-            SELECT t.training_id, t.name_training, g.name, t.date, t.location 
+        query = """
+            SELECT t.training_id, t.name_training, g.name, 
+                   DATE_FORMAT(t.date, '%H:%i-%d-%m-%Y') as formatted_date, t.location 
             FROM trainings t
             JOIN groups g ON t.group_id = g.group_id
-        """, ["training_id", "name_training", "name", "date", "location"])
+        """
+        self.load_data(query, ["training_id", "name_training", "name", "formatted_date", "location"])
 
-        # Показываем снова текущее окно с обновленным списком
-        self.show()  # Показываем главное окно снова
+    def add_training(self):
+        """Открытие окна добавления тренировки."""
+        self.create_user_window = CreateTrainingWindow(self)
+        self.hide()
+        self.create_user_window.show()
+        self.create_user_window.finished.connect(self.refresh_training_list)
 
-
-        
     def edit_training(self):
+        """Открытие окна редактирования тренировки."""
         selected_row = self.table.currentRow()
         if selected_row == -1:
             QMessageBox.warning(self, "Ошибка", "Выберите тренировку для редактирования")
@@ -406,8 +395,9 @@ class TrainingWindow(BaseWindow):
         training_id = self.table.item(selected_row, 0).text()
         self.create_user_window = EditTrainingWindow(self, training_id)
         self.create_user_window.show()
-        
+
     def delete_training(self):
+        """Удаление выбранной тренировки."""
         selected_row = self.table.currentRow()
         if selected_row == -1:
             QMessageBox.warning(self, "Ошибка", "Выберите тренировку для удаления")
@@ -415,32 +405,20 @@ class TrainingWindow(BaseWindow):
 
         training_id = self.table.item(selected_row, 0).text()
 
-        # Запрос на удаление тренировки
         connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
             try:
-                # Проверка, существует ли тренировка в базе
                 cursor.execute("SELECT training_id FROM trainings WHERE training_id = %s", (training_id,))
-                training = cursor.fetchone()
-
-                if training:
-                    # Удаление тренировок из связанной таблицы attendance
-                    cursor.execute("DELETE FROM training_attendance WHERE training_id = %s", (training_id,))
-
-                    # Удаление самой тренировки
-                    cursor.execute("DELETE FROM trainings WHERE training_id = %s", (training_id,))
-                    connection.commit()
-                    QMessageBox.information(self, "Успех", "Тренировка успешно удалена!")
-
-                    # Обновляем данные на экране
-                    self.load_data("""
-                        SELECT t.training_id, t.name_training, g.name, t.date, t.location
-                        FROM trainings t
-                        JOIN groups g ON t.group_id = g.group_id
-                    """, ["training_id", "name_training", "name", "date", "location"])
-                else:
+                if not cursor.fetchone():
                     QMessageBox.warning(self, "Ошибка", "Такой тренировки нет!")
+                    return
+
+                cursor.execute("DELETE FROM training_attendance WHERE training_id = %s", (training_id,))
+                cursor.execute("DELETE FROM trainings WHERE training_id = %s", (training_id,))
+                connection.commit()
+                QMessageBox.information(self, "Успех", "Тренировка успешно удалена!")
+                self.refresh_training_list()
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении тренировки: {e}")
                 connection.rollback()
@@ -452,13 +430,13 @@ class TrainingWindow(BaseWindow):
 class CompetitionWindow(BaseWindow):
     def __init__(self, parent_window):
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
-        column_labels = ["ID Соревнования", "Название", "Дата", "Место проведения"]
+        column_labels = ["ID Соревнования", "Название", "Дата", "ID Тренера", "Место проведения"]
         super().__init__(parent_window, "Журнал соревнований", "Соревнования", column_labels, button_labels)
         self.add_button.clicked.connect(self.add_competition)
         self.edit_button.clicked.connect(self.edit_competition)
         self.delete_button.clicked.connect(self.delete_competition)
-        self.load_data("SELECT competition_id, name, date, location FROM competitions", 
-               ["competition_id", "name", "date", "location"])
+        self.load_data("SELECT competition_id, name, DATE_FORMAT(date, '%H:%i-%d-%m-%Y') as formatted_date, trainer, location FROM competitions", 
+               ["competition_id", "name", "formatted_date", "trainer", "location"])
         
     def add_competition(self):  
         self.create_user_window = CreateCompetitionWindow(self)
@@ -500,8 +478,8 @@ class CompetitionWindow(BaseWindow):
                     QMessageBox.information(self, "Успех", "Соревнование успешно удалено!")
 
                     # Обновляем данные на экране
-                    self.load_data("SELECT competition_id, name, date, location FROM competitions", 
-                                   ["competition_id", "name", "date", "location"])
+                    self.load_data("SELECT competition_id, name, DATE_FORMAT(date, '%H:%i-%d-%m-%Y') as formatted_date, trainer, location FROM competitions", 
+                                   ["competition_id", "name", "formatted_date", "trainer", "location"])
                 else:
                     QMessageBox.warning(self, "Ошибка", "Такого соревнования нет!")
             except mysql.connector.Error as e:
