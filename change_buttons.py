@@ -447,8 +447,13 @@ class CreateTrainingWindow(QDialog):
                 groups = cursor.fetchall()
                 self.group_input.addItems([group[1] for group in groups])
 
-                # Загрузка тренеров
-                cursor.execute("SELECT trainer_id, last_name FROM trainers")
+                # Загрузка тренеров, которые активны (active = 1)
+                cursor.execute("""
+                    SELECT t.trainer_id, t.last_name
+                    FROM trainers t
+                    JOIN users u ON t.user_id = u.user_id
+                    WHERE u.active = 1
+                """)
                 trainers = cursor.fetchall()
                 for trainer in trainers:
                     self.coach_input.addItem(f"{trainer[1]} (ID: {trainer[0]})", trainer[0])  # Добавляем ID тренера
@@ -470,12 +475,13 @@ class CreateTrainingWindow(QDialog):
                 cursor.execute("SELECT group_id FROM groups WHERE name = %s", (group_name,))
                 group_id = cursor.fetchone()
                 if group_id:
-                    # Загрузка спортсменов в выбранной группе
+                    # Загрузка спортсменов в выбранной группе, которые активны (active = 1)
                     cursor.execute("""
                         SELECT s.sportsman_id, s.last_name
                         FROM sportsmen s
                         JOIN sportsman_group sg ON s.sportsman_id = sg.sportsman_id
-                        WHERE sg.group_id = %s
+                        JOIN users u ON s.user_id = u.user_id
+                        WHERE sg.group_id = %s AND u.active = 1
                     """, (group_id[0],))
                     sportsmen = cursor.fetchall()
                     self.athletes_table.setRowCount(len(sportsmen))
@@ -745,10 +751,8 @@ class CreateCompetitionWindow(QWidget):
 
     def go_back(self):
         self.close()
-
-        
-        
-
+        self.parent_window.show()
+         
 class EditTrainingWindow(QDialog):
     def __init__(self, parent_window, training_id):
         super().__init__()
@@ -834,8 +838,13 @@ class EditTrainingWindow(QDialog):
                     self.datetime_input.setDateTime(QDateTime.fromString(training[1].strftime("%Y-%m-%d %H:%M:%S"), "yyyy-MM-dd HH:mm:ss"))
                     self.location_input.setText(training[4])
 
-                    # Загрузка тренеров
-                    cursor.execute("SELECT trainer_id, last_name FROM trainers")
+                    # Загрузка активных тренеров
+                    cursor.execute("""
+                        SELECT t.trainer_id, t.last_name
+                        FROM trainers t
+                        JOIN users u ON t.user_id = u.user_id
+                        WHERE u.active = 1
+                    """)
                     trainers = cursor.fetchall()
                     for trainer in trainers:
                         self.coach_input.addItem(trainer[1], trainer[0])
@@ -863,15 +872,24 @@ class EditTrainingWindow(QDialog):
                 connection.close()
 
     def load_athletes(self):
+        """Загрузка спортсменов для выбранной группы, исключая неактивных."""
+        group_id = self.group_input.currentData()
+        if not group_id:
+            return
+
         connection = get_database_connection()
         if connection:
             cursor = connection.cursor()
             try:
+                # Загрузка спортсменов из выбранной группы, которые активны
                 cursor.execute("""
-                    SELECT s.sportsman_id, s.last_name, ca.is_present
+                    SELECT s.sportsman_id, s.last_name, ta.is_present
                     FROM sportsmen s
-                    LEFT JOIN training_attendance ca ON s.sportsman_id = ca.athlete_id AND ca.training_id = %s
-                """, (self.training_id,))
+                    JOIN sportsman_group sg ON s.sportsman_id = sg.sportsman_id
+                    JOIN users u ON s.user_id = u.user_id
+                    LEFT JOIN training_attendance ta ON s.sportsman_id = ta.athlete_id AND ta.training_id = %s
+                    WHERE sg.group_id = %s AND u.active = 1
+                """, (self.training_id, group_id))
                 sportsmen = cursor.fetchall()
                 self.athletes_table.setRowCount(len(sportsmen))
                 for row, athlete in enumerate(sportsmen):
@@ -932,6 +950,7 @@ class EditTrainingWindow(QDialog):
                 connection.commit()
                 self.parent_window.load_data("SELECT * FROM trainings", ["training_id", "name_training", "date","location", "trainer", "group_id"])
                 QMessageBox.information(self, "Успех", "Тренировка успешно сохранена!")
+                self.close()
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при сохранении изменений: {e}")
                 connection.rollback()
