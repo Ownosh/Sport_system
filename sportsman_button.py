@@ -157,7 +157,7 @@ class ProfileDialog(QDialog):
         self.profile_label = QLabel()
         self.profile_label.setStyleSheet("""
             QLabel {
-                font-size: 14px;
+                font-size: 12px;
                 color: #ffffff;
                 background-color: #707070;
                 padding: 10px;
@@ -170,10 +170,10 @@ class ProfileDialog(QDialog):
         self.ok_button = QPushButton("OK")
         self.ok_button.setStyleSheet("""
             QLabel {
-                font-size: 14px;
+                font-size: 12px;
             }
             QLineEdit, QTextEdit {
-                font-size: 14px;
+                font-size: 12px;
                 padding: 5px;
             }
             QTextEdit {

@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import QWidget,QDialog, QTableWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QHeaderView, QMessageBox, QTableWidgetItem
 import mysql.connector
 from change_buttons import (
-    CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, EditTrainingWindow, EditCompetitionWindow,EditUserWindow,SelectAwardWindow,
-    CreateCompetitionWindow, DeleteTrainingWindow, DeleteCompetitionWindow, DeleteUserWindow, DeleteAwardWindow)
+    CreateUserWindow,CreateRewardWindow, CreateTrainingWindow,get_database_connection, EditTrainingWindow, EditCompetitionWindow,EditUserWindow,EditRewardWindow,
+    CreateCompetitionWindow)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 
@@ -170,19 +170,23 @@ class BaseWindow2(QWidget):
 
 
 
+
+
 class AwardWindow(BaseWindow):
     def __init__(self, parent_window):
         # Инициализируем с нужными параметрами
         button_labels = {'add': "Добавить", 'edit': "Изменить", 'delete': "Удалить"}
-        column_labels = ["reward_id", "Дата", "Описание награды"]
+        column_labels = ["ID Награды", "ID Соревнования", "ID спортсмена", "Дата", "Описание награды"]
         super().__init__(parent_window, "Журнал наград", "Список наград", column_labels, button_labels)
 
+        # Подключаем кнопки к методам
         self.add_button.clicked.connect(self.add_award)
         self.edit_button.clicked.connect(self.edit_award)
         self.delete_button.clicked.connect(self.delete_award)
 
         # Загружаем данные о наградах
-        self.load_data("SELECT reward_id, reward_date, reward_description FROM rewards", ["reward_id", "reward_date", "reward_description"])
+        self.load_data("SELECT reward_id, competition_id, sportsman_id, reward_date, reward_description FROM rewards", 
+                       ["reward_id", "competition_id", "sportsman_id", "reward_date", "reward_description"])
 
     def add_award(self):
         # Открыть окно для добавления награды
@@ -191,17 +195,27 @@ class AwardWindow(BaseWindow):
         self.hide()
 
     def edit_award(self):
-        # Открыть окно для редактирования награды
-        self.select_award_window = SelectAwardWindow(self)
-        self.select_award_window.show()
-        self.hide()
+        # Получаем выбранную строку в таблице
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Ошибка", "Выберите награду для редактирования")
+            return
+
+        # Получаем ID награды из выбранной строки
+        reward_id = self.table.item(selected_row, 0).text()
+
+        # Открываем окно редактирования с передачей reward_id
+        self.edit_reward_window = EditRewardWindow(self, reward_id)
+        self.edit_reward_window.show()
 
     def delete_award(self):
+        # Получаем выбранную строку в таблице
         selected_row = self.table.currentRow()
         if selected_row == -1:
             QMessageBox.warning(self, "Ошибка", "Выберите награду для удаления")
             return
 
+        # Получаем ID награды из выбранной строки
         reward_id = self.table.item(selected_row, 0).text()
 
         # Запрос на удаление награды
@@ -221,7 +235,7 @@ class AwardWindow(BaseWindow):
 
                     # Обновляем данные на экране
                     self.load_data("SELECT reward_id, reward_date, reward_description FROM rewards", 
-                                ["reward_id", "reward_date", "reward_description"])
+                                   ["reward_id", "reward_date", "reward_description"])
                 else:
                     QMessageBox.warning(self, "Ошибка", "Такой награды нет!")
             except mysql.connector.Error as e:
@@ -230,6 +244,7 @@ class AwardWindow(BaseWindow):
             finally:
                 cursor.close()
                 connection.close()
+
 
 
         
@@ -337,13 +352,6 @@ class UserWindow(BaseWindow):
                 finally:
                     cursor.close()
                     connection.close()
-
-
-
-
-
-
-
 
 class TrainingWindow(BaseWindow):
     def __init__(self, parent_window):
