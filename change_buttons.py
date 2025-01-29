@@ -243,7 +243,9 @@ class CreateRewardWindow(QWidget):
         # Поля ввода
         self.sportsman_id_input = QLineEdit()
         self.competition_id_input = QLineEdit()
-        self.reward_date_input = QLineEdit()
+        self.reward_date_input = QDateEdit()
+        self.reward_date_input.setDisplayFormat("dd.MM.yyyy")
+        self.reward_date_input.setDate(QDate.currentDate())
 
         # Многострочное текстовое поле для описания награды
         self.reward_description_input = QTextEdit()  # Используем QTextEdit для многострочного ввода
@@ -282,18 +284,11 @@ class CreateRewardWindow(QWidget):
     def submit_form(self):
         sportsman_id = self.sportsman_id_input.text().strip()
         competition_id = self.competition_id_input.text().strip()
-        reward_date = self.reward_date_input.text().strip()
+        reward_date = self.reward_date_input.date().toString("yyyy-MM-dd")
         reward_description = self.reward_description_input.toPlainText().strip()  # Получаем текст из QTextEdit
 
         if not all([sportsman_id, competition_id, reward_date, reward_description]):
             QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля.")
-            return
-
-        # Преобразуем дату в формат ГГГГ-ММ-ДД
-        try:
-            reward_date = QDate.fromString(reward_date, "dd.MM.yyyy").toString("yyyy-MM-dd")
-        except Exception as e:
-            QMessageBox.warning(self, "Ошибка", "Неверный формат даты. Используйте формат ДД.ММ.ГГГГ.")
             return
 
         db = get_database_connection()  # Убедитесь, что эта функция определена
@@ -335,6 +330,7 @@ class CreateRewardWindow(QWidget):
     def go_back(self):
         self.close()
         self.parent_window.show()
+
 
 class CreateTrainingWindow(QDialog):
     def __init__(self, parent_window, config=None, user_role=None):
@@ -1544,8 +1540,9 @@ class EditRewardWindow(QDialog):
         self.athlete_id_label = QLabel("ID спортсмена:")
         self.athlete_id_input = QLineEdit()
 
-        self.reward_date_label = QLabel("Дата награды (гггг-мм-дд):")
-        self.reward_date_input = QLineEdit()
+        self.reward_date_label = QLabel("Дата награды (дд.мм.гггг):")
+        self.reward_date_input = QDateEdit()
+        self.reward_date_input.setDisplayFormat("dd.MM.yyyy")
 
         self.description_label = QLabel("Описание награды:")
         self.description_input = QTextEdit()
@@ -1590,7 +1587,7 @@ class EditRewardWindow(QDialog):
                 if reward_data:
                     self.competition_id_input.setText(str(reward_data[0]))
                     self.athlete_id_input.setText(str(reward_data[1]))  # Используем спортсмен_id
-                    self.reward_date_input.setText(reward_data[2].strftime("%Y-%m-%d"))
+                    self.reward_date_input.setDate(QDate.fromString(reward_data[2].strftime("%d.%m.%Y"), "dd.MM.yyyy"))
                     self.description_input.setPlainText(reward_data[3])
                 else:
                     QMessageBox.warning(self, "Ошибка", "Награда не найдена.")
@@ -1603,7 +1600,7 @@ class EditRewardWindow(QDialog):
     def save_reward(self):
         competition_id = self.competition_id_input.text().strip()
         athlete_id = self.athlete_id_input.text().strip()
-        reward_date = self.reward_date_input.text().strip()
+        reward_date = self.reward_date_input.date().toString("yyyy-MM-dd")
         description = self.description_input.toPlainText().strip()
 
         if not all([competition_id, athlete_id, reward_date, description]):
@@ -1659,8 +1656,4 @@ class EditRewardWindow(QDialog):
     def go_back(self):
         self.close()
         self.parent_window.show()
-
-
-
-
 
