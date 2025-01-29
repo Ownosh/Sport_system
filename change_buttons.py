@@ -336,7 +336,6 @@ class CreateRewardWindow(QWidget):
         self.close()
         self.parent_window.show()
 
-
 class CreateTrainingWindow(QDialog):
     def __init__(self, parent_window, config=None, user_role=None):
         super().__init__()
@@ -569,10 +568,6 @@ class CreateTrainingWindow(QDialog):
         self.close()
         self.parent_window.show()
 
-
-
-
-
 class CreateCompetitionWindow(QWidget):
     def __init__(self, parent_window):
         super().__init__()
@@ -760,6 +755,8 @@ class EditTrainingWindow(QDialog):
         self.training_id = training_id
         self.setWindowTitle("Редактирование тренировки")
         self.setGeometry(350, 150, 800, 400)
+        
+        self.setModal(True)
         
         self.setup_ui()
         self.load_data()
