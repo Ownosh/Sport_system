@@ -551,10 +551,10 @@ class CreateTrainingWindow(QDialog):
                 connection.commit()
 
                 # Закрытие текущего окна и обновление родительского окна с новым списком тренировок
-                self.parent_window.refresh_training_list()  # Используем новый метод родительского класса
-                self.close()
-                self.parent_window.show()# Закрываем окно создания тренировки
+                self.parent_window.refresh_training_list()  # Используем новый метод родительского класса# Закрываем окно создания тренировки
                 QMessageBox.information(self, "Успех", "Тренировка успешно добавлена!")
+                self.close()
+                self.parent_window.show()
                 
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при добавлении тренировки: {e}")
@@ -945,7 +945,7 @@ class EditTrainingWindow(QDialog):
 
                 # Подтверждение изменений
                 connection.commit()
-                self.parent_window.load_data("SELECT * FROM trainings", ["training_id", "name_training", "date","location", "trainer", "group_id"])
+                self.parent_window.refresh_training_list()
                 QMessageBox.information(self, "Успех", "Тренировка успешно сохранена!")
                 self.close()
             except mysql.connector.Error as e:
@@ -1473,6 +1473,8 @@ class EditUserWindow(QWidget):
             connection.commit()
             QMessageBox.information(self, "Успех", "Данные пользователя успешно обновлены.")
             self.close()
+            self.parent_window.load_data("SELECT user_id, username, password, role, phone_number, email FROM users", 
+                       ["user_id", "username", "password", "role", "phone_number", "email"])
             self.parent_window.show()
         except mysql.connector.Error as e:
             connection.rollback()

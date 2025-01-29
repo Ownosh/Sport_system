@@ -140,7 +140,7 @@ class ReportWindow(QWidget):
         plt.figure(figsize=(5, 4), dpi=100)  # DPI увеличен для улучшения качества
         plt.barh(labels, values, color='grey')
         plt.xlabel('Количество')
-        plt.title('Отчет по спортсменам и тренерам')
+        plt.title('Отчет')
         plt.tight_layout()
 
         plt.savefig('report_chart.png', dpi=200)  # Сохраняем в высоком разрешении

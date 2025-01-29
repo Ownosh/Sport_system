@@ -435,7 +435,7 @@ class AddPeopleDialog(QDialog):
                 cursor.execute("INSERT INTO sportsman_group (sportsman_id, group_id) VALUES (%s, %s)", (athlete_id, self.group_id))
                 connection.commit()
                 QMessageBox.information(self, "Успех", "Спортсмен успешно добавлен в группу!")
-                self.accept()
+                
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при добавлении спортсмена в группу: {e}")
                 connection.rollback()
@@ -450,6 +450,7 @@ class ViewPeopleDialog(QDialog):
         super().__init__(parent)
         self.group_id = group_id
         self.setWindowTitle("Просмотреть людей в группе")
+        self.setGeometry(400, 200, 335, 400)
 
         self.layout = QVBoxLayout()
 
@@ -532,7 +533,6 @@ class DeletePeopleDialog(QDialog):
                 cursor.execute("DELETE FROM sportsman_group WHERE sportsman_id = %s AND group_id = %s", (athlete_id, self.group_id))
                 connection.commit()
                 QMessageBox.information(self, "Успех", "Спортсмен успешно удален из группы!")
-                self.accept()
             except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при удалении спортсмена из группы: {e}")
                 connection.rollback()
