@@ -101,9 +101,12 @@ class SportsmenWindow(QWidget):
         dialog.exec()
 
     def load_data(self):
+        # Обновленный запрос с JOIN и фильтрацией по active = 1
         query = (
-            "SELECT sportsman_id, first_name,"
-            "last_name, typesport FROM sportsmen"
+            "SELECT s.sportsman_id, s.first_name, s.last_name, s.typesport "
+            "FROM sportsmen s "
+            "JOIN users u ON s.user_id = u.user_id "  # Предполагаем, что таблицы связаны по user_id
+            "WHERE u.active = 1"  # Фильтруем только активных пользователей
         )
         db = get_database_connection()
         if not db:
@@ -395,10 +398,6 @@ class InjuryDialog(QDialog):
         else:
             QMessageBox.critical(self, "Ошибка", "Нет соединения с базой данных")
 
-
-
-
-from PyQt6.QtCore import Qt
 
 class ViewInjuriesDialog(QDialog):
     def __init__(self, parent, sportsman_id):

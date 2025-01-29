@@ -84,7 +84,10 @@ class TrainerWindow(QWidget):
 
     def load_data(self):
         query = (
-            "SELECT trainer_id, first_name, last_name, specialty FROM trainers"
+            """SELECT t.trainer_id, t.first_name, t.last_name, t.specialty 
+            FROM trainers t
+            JOIN users u ON t.user_id = u.user_id  -- Связываем таблицы по user_id
+             WHERE u.active = 1"""
         )
         db = get_database_connection()
         if not db:
