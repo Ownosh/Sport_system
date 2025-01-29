@@ -213,10 +213,10 @@ class CreateRewardWindow(QWidget):
         # Применяем стилизацию
         self.setStyleSheet("""
             QLabel {
-                font-size: 14px;
+                font-size: 12px;
             }
             QLineEdit, QTextEdit {
-                font-size: 14px;
+                font-size: 12px;
                 padding: 5px;
             }
             QTextEdit {
@@ -318,8 +318,8 @@ class CreateRewardWindow(QWidget):
             )
             db.commit()
             self.parent_window.load_data(
-                "SELECT reward_id, reward_date, reward_description FROM rewards",
-                ["reward_id", "reward_date", "reward_description"]
+                "SELECT reward_id, competition_id, sportsman_id, reward_date, reward_description FROM rewards",
+                ["reward_id", "competition_id", "sportsman_id", "reward_date", "reward_description"]
             )
             QMessageBox.information(self, "Успех", "Награда успешно добавлена.")
             self.close() 
@@ -1191,7 +1191,7 @@ class EditUserWindow(QWidget):
             }
         """)
         
-        self.setModal(True)
+
 
         # Элементы формы
         self.username_label = QLabel("Логин:")
@@ -1644,9 +1644,9 @@ class EditRewardWindow(QDialog):
 
                 # Передаем необходимые аргументы в load_data
                 self.parent_window.load_data(
-                    "SELECT reward_id, reward_date, reward_description FROM rewards",
-                    ["reward_id", "reward_date", "reward_description"]
-                )
+                "SELECT reward_id, competition_id, sportsman_id, reward_date, reward_description FROM rewards",
+                ["reward_id", "competition_id", "sportsman_id", "reward_date", "reward_description"]
+            )
             except mysql.connector.Error as e:
                 connection.rollback()
                 QMessageBox.critical(self, "Ошибка базы данных", f"Ошибка при сохранении: {e}")

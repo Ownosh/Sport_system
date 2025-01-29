@@ -229,7 +229,12 @@ class CreateGroupDialog(QDialog):
         if connection:
             cursor = connection.cursor()
             try:
-                cursor.execute("SELECT trainer_id, last_name FROM trainers")
+                cursor.execute("""
+                    SELECT t.trainer_id, t.last_name 
+                    FROM trainers t
+                    JOIN users u ON t.user_id = u.user_id
+                    WHERE u.active = 1
+                """)
                 trainers = cursor.fetchall()
                 for trainer in trainers:
                     self.trainer_combobox.addItem(trainer[1], trainer[0])  # Добавляем имя тренера и его id
@@ -304,7 +309,12 @@ class EditGroupDialog(QDialog):
         if connection:
             cursor = connection.cursor()
             try:
-                cursor.execute("SELECT trainer_id, last_name FROM trainers")
+                cursor.execute("""
+                    SELECT t.trainer_id, t.last_name 
+                    FROM trainers t
+                    JOIN users u ON t.user_id = u.user_id
+                    WHERE u.active = 1
+                """)
                 trainers = cursor.fetchall()
                 for trainer in trainers:
                     self.trainer_combobox.addItem(trainer[1], trainer[0])  # Добавляем имя тренера и его id
@@ -399,7 +409,14 @@ class AddPeopleDialog(QDialog):
         if connection:
             cursor = connection.cursor()
             try:
-                cursor.execute("SELECT sportsman_id, first_name, last_name FROM sportsmen")
+                # Выбираем только активных спортсменов через связь с таблицей users
+                cursor.execute("""
+                    SELECT s.sportsman_id, s.first_name, s.last_name 
+                    FROM sportsmen s
+                    JOIN users u ON s.user_id = u.user_id
+                    WHERE u.active = 1 
+                    ORDER BY s.first_name, s.last_name
+                """)
                 athletes = cursor.fetchall()
                 for athlete in athletes:
                     self.athlete_combo.addItem(f"{athlete[1]} {athlete[2]} (ID: {athlete[0]})", athlete[0])
@@ -425,6 +442,7 @@ class AddPeopleDialog(QDialog):
             finally:
                 cursor.close()
                 connection.close()
+
 
 
 class ViewPeopleDialog(QDialog):
